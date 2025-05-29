@@ -23,10 +23,8 @@ main :: () {
             Simp.update_window(it.window);
             if it.window == __s.window {
                 should_reinit := (it.width != __s.window_width) || (it.height != __s.window_height);
-
                 __s.window_width  = it.width;
                 __s.window_height = it.height;
-
                 if should_reinit init_fonts();  // Resize the font for the new window size.
             }
         }
@@ -53,6 +51,9 @@ draw_one_frame :: () {
     Simp.clear_render_target(0.0, .00, .08, 1);
     x, y, width, height := WindowCreation.get_dimensions(__s.window, true);
     GetRect.ui_per_frame_update(__s.window, width, height, __s.current_time);
+    k := __s.window_height * .06;
+    r := GetRect.get_rect(k*.5, 6.1*k, 5*k, k);
+    pressed := GetRect.button(r, "Show Parcels");
     Simp.set_shader_for_color();
     using Math;
     p0 := Vector2.{200, 100};

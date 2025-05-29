@@ -247,9 +247,9 @@
     <<(cast(*Selector) (data + 1240)) = sel_registerName("draggingPasteboard");
 
 //
-// #insert text. Generated from /Users/seth/seth/projects/jai_projects/jai/modules/Objective_C/AppKit.jai:373.
+// #insert text. Generated from /Users/seth/seth/projects/jai_projects/jai/modules/Objective_C/AppKit.jai:379.
 //
-_nsresponder_data: [24] u8; // size of NSResponder minus size of parent class
+_nswindowcontroller_data: [72] u8; // size of NSWindowController minus size of parent class
 
 //
 // #insert text. Generated from /Users/seth/seth/projects/jai_projects/jai/modules/Objective_C/AppKit.jai:898.
@@ -257,6 +257,6 @@ _nsresponder_data: [24] u8; // size of NSResponder minus size of parent class
 _nsviewcontroller_data: [88] u8; // size of NSViewController minus size of parent class
 
 //
-// #insert text. Generated from /Users/seth/seth/projects/jai_projects/jai/modules/Objective_C/AppKit.jai:379.
+// #insert text. Generated from /Users/seth/seth/projects/jai_projects/jai/modules/Objective_C/AppKit.jai:373.
 //
-_nswindowcontroller_data: [72] u8; // size of NSWindowController minus size of parent class
+_nsresponder_data: [24] u8; // size of NSResponder minus size of parent class
