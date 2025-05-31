@@ -1,4 +1,9 @@
 
+Line :: struct {
+    p1: Math.Vector2;
+    p2: Math.Vector2;
+}
+
 State :: struct {
     window : WindowCreation.Window_Type;
     window_width : s32;
@@ -6,7 +11,10 @@ State :: struct {
     working_directory_set : bool;
     font: *Simp.Dynamic_Font;
     current_time: float64;
+    lines: [..] Line;
+    mouse_press_pos: Math.Vector2 = .{-1,-1}; 
 }
+
 __s : State;
 
 main :: () {
@@ -30,10 +38,31 @@ main :: () {
         }
         for Input.events_this_frame {
             if it.type == .QUIT then quit = true;
+            //print("% %\n", it.type, it.key_code);
             if it.type == .KEYBOARD {
+                x, y := WindowCreation.get_mouse_pointer_position(__s.window, true);
+
                 if !it.repeat {
-                    //key : string = #char it.key_code;
-                    Basic.print("Key pressed %\n", it.key_code);
+                    if it.key_pressed {
+                        if it.key_code == {
+                            case #char "1";
+                            //print("%", __s.p1);
+                            case #char "2";
+                            //print("%", __s.p2);
+                        }
+                    }
+                    if it.key_code == .MOUSE_BUTTON_LEFT {
+                        if (it.key_pressed)  {
+                            __s.mouse_press_pos = .{x.(float), y.(float)};
+                        } else {
+                            line: Line = .{
+                                p1 = __s.mouse_press_pos,
+                                p2 = .{x.(float), y.(float)}
+                            };
+                            __s.mouse_press_pos = .{-1,-1};
+                            Basic.array_add(*__s.lines, line);
+                        }
+                    }
                 }
             }
         }
@@ -55,17 +84,27 @@ init_fonts :: () {
 
 draw_one_frame :: () {
     Simp.clear_render_target(0.0, .00, .08, 1);
-    x, y, width, height := WindowCreation.get_dimensions(__s.window, true);
-    GetRect.ui_per_frame_update(__s.window, width, height, __s.current_time);
+    {
+        _, _, width, height := WindowCreation.get_dimensions(__s.window, true);
+        GetRect.ui_per_frame_update(__s.window, width, height, __s.current_time);
+    }
     k := __s.window_height * .06;
     r := GetRect.get_rect(k*.5, 6.1*k, 5*k, k);
     pressed := GetRect.button(r, "Show Parcels");
     Simp.set_shader_for_color();
-    using Math;
-    p0, p1 : Vector2;
-    p0 = .{200, 100};
-    p1 = .{__s.window_width.(float)/2, __s.window_height.(float)/2};
-    draw_line(p0, p1, 100.0);
+    Simp.immediate_begin();
+    for __s.lines {
+        p2: Math.Vector2;
+            p2 = it.p2;
+        draw_line(it.p1, p2, 10.0);
+    }
+
+    if __s.mouse_press_pos.x != -1 {
+        x, y := WindowCreation.get_mouse_pointer_position(__s.window, true);
+        mouse_pos: = Math.Vector2.{x.(float), y.(float)};
+        draw_line(__s.mouse_press_pos, mouse_pos, 5.0);
+    }
+    Simp.immediate_flush();
     Simp.swap_buffers(__s.window);
 }
 
@@ -101,7 +140,7 @@ GetRect :: #import "GetRect";
 Input :: #import "Input";
 WindowCreation :: #import "Window_Creation";
 Simp :: #import "Simp";
-Basic :: #import "Basic";
+using,only(print) Basic :: #import "Basic";
 Math :: #import "Math";
 String :: #import "String";
 System :: #import "System";
