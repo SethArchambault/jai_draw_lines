@@ -30,6 +30,12 @@ main :: () {
         }
         for Input.events_this_frame {
             if it.type == .QUIT then quit = true;
+            if it.type == .KEYBOARD {
+                if !it.repeat {
+                    //key : string = #char it.key_code;
+                    Basic.print("Key pressed %\n", it.key_code);
+                }
+            }
         }
         draw_one_frame();
         Basic.sleep_milliseconds(10);
@@ -56,18 +62,37 @@ draw_one_frame :: () {
     pressed := GetRect.button(r, "Show Parcels");
     Simp.set_shader_for_color();
     using Math;
-    p0 := Vector2.{200, 100};
-    p1 := Vector2.{__s.window_width.(float)/2, __s.window_height.(float)/2};
+    p0, p1 : Vector2;
+    p0 = .{200, 100};
+    p1 = .{__s.window_width.(float)/2, __s.window_height.(float)/2};
     draw_line(p0, p1, 100.0);
     Simp.swap_buffers(__s.window);
 }
 
 draw_line :: (l1:Math.Vector2, l2: Math.Vector2, width:float) {
     using Math;
-    p0 := Vector3.{l1.x, l1.y, 0};
-    p1 := Vector3.{l1.x, l1.y + width, 0};
-    p2 := Vector3.{l2.x, l2.y + width, 0};
-    p3 := Vector3.{l2.x, l2.y, 0};
+
+    line_dx     := l2.x - l1.x;
+    line_dy     := l2.y - l1.y;
+
+    inverse_radian := Math.atan(line_dx/line_dy);
+    radian_with_90_degrees := Math.PI - inverse_radian;
+
+    radian      := radian_with_90_degrees - Math.PI / 2;
+    angle       := radian / Math.PI * 180;
+    
+    h_1a        := width/ 2.;
+    sin_radian  := sin(radian); 
+    cos_radian  := cos(radian);
+    dx          := sin_radian * h_1a; // soh opposite, horizontal
+    dy          := cos_radian * h_1a; // cah adjacent, vertical
+
+    p0, p1, p2, p3 : Vector3;
+    p0 = .{l1.x - dx, l1.y + dy, 0};
+    p1 = .{l2.x - dx, l2.y + dy, 0};
+    p2 = .{l2.x + dx, l2.y - dy, 0};
+    p3 = .{l1.x + dx, l1.y - dy, 0};
+
     color := Vector4.{0.5, 0, 0, 1};
     Simp.immediate_quad(p0, p1, p2, p3, color);
 }
@@ -81,3 +106,8 @@ Math :: #import "Math";
 String :: #import "String";
 System :: #import "System";
 
+Compiler :: #import "Compiler";
+// build
+#run {
+    Compiler.set_build_options_dc(.{output_path="bin", output_executable_name="draw_lines"});
+}
