@@ -1,7 +1,7 @@
 
 Line :: struct {
-    p1: Math.Vector2;
-    p2: Math.Vector2;
+    p1: Vector2;
+    p2: Vector2;
 }
 
 State :: struct {
@@ -12,7 +12,7 @@ State :: struct {
     font: *Simp.Dynamic_Font;
     current_time: float64;
     lines: [..] Line;
-    mouse_press_pos: Math.Vector2 = .{-1,-1}; 
+    mouse_press_pos: Vector2 = .{-1,-1}; 
 }
 
 __s : State;
@@ -53,11 +53,11 @@ main :: () {
                     }
                     if it.key_code == .MOUSE_BUTTON_LEFT {
                         if (it.key_pressed)  {
-                            __s.mouse_press_pos = .{x.(float), y.(float)};
+                            __s.mouse_press_pos = .{xx x, xx y};
                         } else {
                             line: Line = .{
                                 p1 = __s.mouse_press_pos,
-                                p2 = .{x.(float), y.(float)}
+                                p2 = .{xx x, xx y}
                             };
                             __s.mouse_press_pos = .{-1,-1};
                             Basic.array_add(*__s.lines, line);
@@ -94,31 +94,31 @@ draw_one_frame :: () {
     Simp.set_shader_for_color();
     Simp.immediate_begin();
     for __s.lines {
-        p2: Math.Vector2;
+        p2: Vector2;
             p2 = it.p2;
         draw_line(it.p1, p2, 10.0);
     }
 
     if __s.mouse_press_pos.x != -1 {
         x, y := WindowCreation.get_mouse_pointer_position(__s.window, true);
-        mouse_pos: = Math.Vector2.{x.(float), y.(float)};
+        mouse_pos: = Vector2.{xx x, xx y};
         draw_line(__s.mouse_press_pos, mouse_pos, 5.0);
     }
     Simp.immediate_flush();
     Simp.swap_buffers(__s.window);
 }
 
-draw_line :: (l1:Math.Vector2, l2: Math.Vector2, width:float) {
+draw_line :: (l1:Vector2, l2: Vector2, width:float, color:Math.Vector4 =.{0.5,0,0,1}) {
     using Math;
 
     line_dx     := l2.x - l1.x;
     line_dy     := l2.y - l1.y;
 
-    inverse_radian := Math.atan(line_dx/line_dy);
-    radian_with_90_degrees := Math.PI - inverse_radian;
+    inverse_radian := atan(line_dx/line_dy);
+    radian_with_90_degrees := PI - inverse_radian;
 
-    radian      := radian_with_90_degrees - Math.PI / 2;
-    angle       := radian / Math.PI * 180;
+    radian      := radian_with_90_degrees - PI / 2;
+    angle       := radian / PI * 180;
     
     h_1a        := width/ 2.;
     sin_radian  := sin(radian); 
@@ -132,7 +132,6 @@ draw_line :: (l1:Math.Vector2, l2: Math.Vector2, width:float) {
     p2 = .{l2.x + dx, l2.y - dy, 0};
     p3 = .{l1.x + dx, l1.y - dy, 0};
 
-    color := Vector4.{0.5, 0, 0, 1};
     Simp.immediate_quad(p0, p1, p2, p3, color);
 }
 
@@ -141,7 +140,7 @@ Input :: #import "Input";
 WindowCreation :: #import "Window_Creation";
 Simp :: #import "Simp";
 using,only(print) Basic :: #import "Basic";
-Math :: #import "Math";
+using,only(Vector2) Math :: #import "Math";
 String :: #import "String";
 System :: #import "System";
 
