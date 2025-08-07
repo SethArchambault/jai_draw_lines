@@ -1,0 +1,354 @@
+
+Line :: struct {
+    p1: Vector2;
+    p2: Vector2;
+}
+
+Draw_Options :: struct {
+    name: string;
+    value := false;
+}
+
+
+State :: struct {
+    window : WindowCreation.Window_Type;
+    window_width : s32;
+    window_height : s32;
+    theme : Overall_Theme;
+    working_directory_set : bool;
+    font: *Simp.Dynamic_Font;
+    current_time: float64;
+    vectors: [..] Vector2;
+    mouse_press_pos: Vector2 = .{-1,-1}; 
+    primary_color: Vector4 = .{0.5, 0, 0, 1};
+    secondary_color: Vector4 = .{0, 0.2, 0, 1};
+    scroll_value_dragdrop_region: float;
+    draw_options: [..] Draw_Options;
+    button_theme: Button_Theme;
+    draw_line_limit: s32 = 0;
+}
+__s : State;
+main :: () {
+  __s.window = WindowCreation.create_window(2800, 2000, "Draw Shapes");
+  __s.window_width, __s.window_height = Simp.get_render_dimensions(__s.window);
+  Simp.set_render_target(__s.window, .LEFT_HANDED);
+  init_fonts();
+  ui_init();
+  quit := false;
+
+  g := array_add(*__s.draw_options);
+  g.name = "Draw 1";
+  g.value = true;
+
+  g = array_add(*__s.draw_options);
+  g.name = "Draw 2";
+  g.value = true;
+
+  g = array_add(*__s.draw_options);
+  g.name = "Draw 3";
+  g.value = true;
+
+  g = array_add(*__s.draw_options);
+  g.name = "Draw 4";
+  g.value = true;
+
+
+
+
+  while !quit {
+    __s.current_time = seconds_since_init();
+    Input.update_window_events();
+    for Input.get_window_resizes() {
+      Simp.update_window(it.window);
+      if it.window == __s.window {
+        should_reinit := (it.width != __s.window_width) || (it.height != __s.window_height);
+        __s.window_width  = it.width;
+        __s.window_height = it.height;
+        if should_reinit init_fonts();  // Resize the font for the new window size.
+      }
+    }
+    for Input.events_this_frame {
+      if it.type == .QUIT then quit = true;
+      //print("% %\n", it.type, it.key_code);
+      if it.type == .KEYBOARD {
+        x, y := WindowCreation.get_mouse_pointer_position(__s.window, false);
+
+        if !it.repeat {
+          if it.key_pressed {
+            if it.key_code == {
+              case #char "R";
+              array_reset(*__s.vectors);
+              case #char "2";
+              print("2 tapped\n");
+            }
+          }
+          k := __s.window_height * .05;
+          if (xx x > 5 * k) {
+            if it.key_code == .MOUSE_BUTTON_LEFT {
+              if (it.key_pressed)  {
+                __s.mouse_press_pos = .{xx x, xx y};
+                array_add(*__s.vectors, .{xx x, xx y});
+                __s.draw_line_limit = xx __s.vectors.count;
+              } 
+            }
+          }
+        }
+      }
+    }
+    draw_one_frame();
+    sleep_milliseconds(10);
+  }
+}
+
+init_fonts :: () {
+  if !__s.working_directory_set {
+      path := String.path_strip_filename(System.get_path_of_running_executable());
+      set_working_directory(path);
+      __s.working_directory_set = true;
+  }
+  pixel_height := __s.window_height / 24;
+  free(__s.font);
+  __s.font = Simp.get_font_at_size("../data", "OpenSans-BoldItalic.ttf", pixel_height);
+  assert(__s.font != null);
+}
+
+TestEnum :: enum {
+  Testing1;
+  Testing2;
+  Testing3;
+}
+
+
+draw_one_frame :: () {
+  proc := default_theme_procs[ Default_Themes.Default ];
+  __s.theme = proc();
+  set_default_theme(__s.theme);
+
+  __s.button_theme = __s.theme.button_theme;
+  __s.button_theme.font = __s.font;
+
+  bg_col := __s.theme.background_color;
+  Simp.clear_render_target(bg_col.x, bg_col.y, bg_col.z, 1);
+
+  {
+    _, _, width, height := WindowCreation.get_dimensions(__s.window, true);
+    ui_per_frame_update(__s.window, width, height, __s.current_time);
+  }
+
+  // 'k' is some resolution-adjusting unit of distance. Right now it is
+  // 1/10 of the screen height, so, 100 pixels at 1920x2000.
+  k := __s.window_height * .05;
+
+
+  Simp.set_shader_for_color();
+  Simp.immediate_begin();
+
+  // UI
+
+  {
+     {
+        r := get_rect(0*k, 1*k, 5*k, 5*k);
+
+        theme := __s.theme.scrollable_region_theme;
+        region, inside := begin_scrollable_region(r, *theme);
+        s := inside;
+        s.y = s.y;
+        s.h = xx __s.font.character_height;
+        s.y -= __s.scroll_value_dragdrop_region;
+        //s.w = 4 * k;
+
+
+          checkbox_theme := __s.theme.checkbox_theme;
+          for * __s.draw_options{
+              pressed := base_checkbox(s, it.name, it.value, *checkbox_theme, it_index);
+              it.value ^= pressed;
+              s.y += floor(__s.font.character_height * 1.1 + 0.5);
+
+          }
+
+
+        {
+          pressed := button(s, "Reset", *__s.button_theme);
+          s.y += floor(__s.font.character_height * 1.1 + 0.5);
+          if pressed  {
+            array_reset(*__s.vectors);
+          }
+        }
+
+        label_theme := __s.theme.label_theme;
+        label(s, tprint("Draw line limit %", __s.draw_line_limit), *label_theme);
+          s.y += floor(__s.font.character_height * 1.1 + 0.5);
+        {
+          pressed := button(s, "-", *__s.button_theme);
+          s.y += floor(__s.font.character_height * 1.1 + 0.5);
+          if pressed  {
+            __s.draw_line_limit -= 1;
+            if (__s.draw_line_limit < 0) {
+              __s.draw_line_limit = 0;
+            }
+
+          }
+        }
+        {
+          pressed := button(s, "+", *__s.button_theme);
+          s.y += floor(__s.font.character_height * 1.1 + 0.5);
+          if pressed  {
+            __s.draw_line_limit += 1;
+          }
+        }
+
+        end_scrollable_region(region, s.x + s.w, s.y, *__s.scroll_value_dragdrop_region);
+
+      }
+
+
+
+
+
+  }
+
+
+  // END UI
+
+
+
+
+
+  if(__s.draw_options[0].value) {
+    for 1..__s.vectors.count - 1 {
+      if (xx it > __s.draw_line_limit) break;
+      draw_line(__s.vectors[it -1], __s.vectors[it], 10.0);
+    }
+  }
+  if(__s.draw_options[1].value) {
+    for 2..__s.vectors.count - 2 {
+      if (xx it > __s.draw_line_limit) break;
+      draw_line(__s.vectors[0], __s.vectors[it], 10.0);
+    }
+  }
+  if(__s.draw_options[2].value) {
+    if (__s.vectors.count > 2) {
+      if (xx __s.vectors.count - 1  <= __s.draw_line_limit) {
+        draw_line(__s.vectors[__s.vectors.count - 1], __s.vectors[0], 10.0);
+      }
+    }
+  }
+
+  if(__s.draw_options[3].value) {
+    if (__s.vectors.count > 2) {
+      // how do I make a copy of vectors
+      // we should just allocate this to temporary memory?
+      
+      v : [..] Vector2;
+      v.allocator = temp;
+      for __s.vectors {
+        if (xx it_index > __s.draw_line_limit) break;
+        array_add(*v, it);
+      }
+      /*
+      v := array_copy(__s.vectors);
+      defer array_free(v);
+      */
+
+      origin := v[0];
+      color := __s.secondary_color; 
+
+      x, y:= WindowCreation.get_mouse_pointer_position(__s.window, true);
+
+      idx :u32= 1;
+      // maybe we should do count - 2
+      while idx < v.count-1 {
+        if (xx idx > __s.draw_line_limit) break;
+        p1 := v[idx-1 % v.count];
+        p2 := v[idx];
+        p3 := v[idx+1 % v.count]; // maybe we should just not do this for the last one.
+
+        // check if this triangle has any values in it.
+        /*
+        Simp.immediate_triangle(
+          .{p1.x, p1.y, 1.0}, 
+          .{p2.x, p2.y, 0}, 
+          .{p3.x, p3.y, 0}, 
+          color, color, color);
+          */
+        draw_line(p1, p3, 10);
+        array_ordered_remove_by_index(*v, idx);
+      }
+      for 1..__s.vectors.count -1 {
+        if (it > __s.draw_line_limit) break;
+        draw_dot_product(__s.vectors[it-1], .{xx x, xx y}, __s.vectors[it]);
+      }
+
+      if (__s.draw_line_limit >= __s.vectors.count) {
+        draw_dot_product(__s.vectors[__s.vectors.count-1], .{xx x, xx y}, __s.vectors[0]);
+      }
+    }
+  }
+
+
+  Simp.immediate_flush();
+  Simp.swap_buffers(__s.window);
+  memory_visualizer_per_frame_update();
+  reset_temporary_storage();
+}
+
+draw_dot_product :: (origin:Vector2,v1:Vector2,v2:Vector2) {
+  p1 := v2 - origin;
+  p1 = .{-p1.y, p1.x};
+  draw_line(origin, origin + p1, 1);
+  dot_product_1 := dot_product(v1 - origin, p1);
+  label_theme := __s.theme.label_theme;
+
+  label_theme.alignment = .Left;
+  label_text := tprint("dot: %", ifx dot_product_1 > 0 then "+" else "-");
+  r := get_rect(origin.x, origin.y, 1000, 100);
+  label(r, label_text, *label_theme);
+}
+
+draw_line :: (l1:Vector2, l2: Vector2, width:float) {
+
+  line_dx     := l2.x - l1.x;
+  line_dy     := l2.y - l1.y;
+
+  inverse_radian := atan(line_dx/line_dy);
+  radian_with_90_degrees := PI - inverse_radian;
+
+  radian      := radian_with_90_degrees - PI / 2;
+  angle       := radian / PI * 180;
+  
+  h_1a        := width/ 2.;
+  sin_radian  := sin(radian); 
+  cos_radian  := cos(radian);
+  dx          := sin_radian * h_1a; // soh opposite, horizontal
+  dy          := cos_radian * h_1a; // cah adjacent, vertical
+
+  p0, p1, p2, p3 : Vector3;
+  p0 = .{l1.x - dx, l1.y + dy, 0};
+  p1 = .{l2.x - dx, l2.y + dy, 0};
+  p2 = .{l2.x + dx, l2.y - dy, 0};
+  p3 = .{l1.x + dx, l1.y - dy, 0};
+  color := __s.primary_color;
+
+  Simp.immediate_quad(p0, p1, p2, p3, color);
+}
+
+#import "GetRect_LeftHanded";
+Input :: #import "Input";
+WindowCreation :: #import "Window_Creation";
+Simp :: #import "Simp";
+
+#import "Basic";
+//#import "Basic"()(MEMORY_DEBUGGER=true);
+
+
+/*
+using,only(
+    Vector2,
+    Vector4
+) Math :: #import "Math";
+*/
+#import "Math";
+
+String :: #import "String";
+System :: #import "System";
+
