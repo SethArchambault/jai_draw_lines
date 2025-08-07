@@ -178,7 +178,11 @@ draw_one_frame :: () {
         slider_theme.surface_style = .NUB;
         slider(s, *__s.draw_line_start, 0, xx __s.vectors.count, 1, *slider_theme, "start");
         if __s.draw_line_start > __s.vectors.count - 1 {
-          __s.draw_line_start = cast(s32) __s.vectors.count - 1;
+          if (__s.vectors.count > 0) {
+            __s.draw_line_start = cast(s32) __s.vectors.count - 1;
+          } else {
+            __s.draw_line_start = 0;
+          }
         }
       
         s.y += s.h * 1.2;
