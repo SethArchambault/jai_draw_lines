@@ -25,8 +25,10 @@ State :: struct {
     scroll_value_dragdrop_region: float;
     draw_options: [..] Draw_Options;
     button_theme: Button_Theme;
+    draw_line_index: s32 = 0;
     draw_line_limit: s32 = 0;
 }
+
 __s : State;
 main :: () {
   __s.window = WindowCreation.create_window(2800, 2000, "Draw Shapes");
@@ -37,13 +39,14 @@ main :: () {
   quit := false;
 
   g := array_add(*__s.draw_options);
-  g.name = "Draw 1";
+  g.name = "Outline";
   g.value = true;
 
   g = array_add(*__s.draw_options);
-  g.name = "Draw 2";
+  g.name = "Lines";
   g.value = true;
 
+  /*
   g = array_add(*__s.draw_options);
   g.name = "Draw 3";
   g.value = true;
@@ -51,6 +54,7 @@ main :: () {
   g = array_add(*__s.draw_options);
   g.name = "Draw 4";
   g.value = true;
+  */
 
 
 
@@ -89,6 +93,7 @@ main :: () {
                 __s.mouse_press_pos = .{xx x, xx y};
                 array_add(*__s.vectors, .{xx x, xx y});
                 __s.draw_line_limit = xx __s.vectors.count;
+                __s.draw_line_index = 0;
               } 
             }
           }
@@ -106,7 +111,7 @@ init_fonts :: () {
       set_working_directory(path);
       __s.working_directory_set = true;
   }
-  pixel_height := __s.window_height / 24;
+  pixel_height := __s.window_height / 40;
   free(__s.font);
   __s.font = Simp.get_font_at_size("../data", "OpenSans-BoldItalic.ttf", pixel_height);
   assert(__s.font != null);
@@ -167,33 +172,26 @@ draw_one_frame :: () {
           }
 
 
+
+        slider_theme := __s.theme.slider_theme;
+        slider_theme.foreground.font = __s.font;
+        slider_theme.surface_style = .NUB;
+        slider(s, *__s.draw_line_index, 0, xx __s.vectors.count, 1, *slider_theme, "start");
+        if __s.draw_line_index > __s.vectors.count - 1 {
+          __s.draw_line_index = cast(s32) __s.vectors.count - 1;
+        }
+      
+        s.y += s.h * 1.2;
+        slider(s, *__s.draw_line_limit, 0, xx __s.vectors.count, 1, *slider_theme, "limit ");
+        s.y += s.h * 1.2;
+
         {
           pressed := button(s, "Reset", *__s.button_theme);
           s.y += floor(__s.font.character_height * 1.1 + 0.5);
           if pressed  {
             array_reset(*__s.vectors);
-          }
-        }
-
-        label_theme := __s.theme.label_theme;
-        label(s, tprint("Draw line limit %", __s.draw_line_limit), *label_theme);
-          s.y += floor(__s.font.character_height * 1.1 + 0.5);
-        {
-          pressed := button(s, "-", *__s.button_theme);
-          s.y += floor(__s.font.character_height * 1.1 + 0.5);
-          if pressed  {
-            __s.draw_line_limit -= 1;
-            if (__s.draw_line_limit < 0) {
-              __s.draw_line_limit = 0;
-            }
-
-          }
-        }
-        {
-          pressed := button(s, "+", *__s.button_theme);
-          s.y += floor(__s.font.character_height * 1.1 + 0.5);
-          if pressed  {
-            __s.draw_line_limit += 1;
+            __s.draw_line_index = 0;
+            __s.draw_line_limit = 0;
           }
         }
 
@@ -215,35 +213,35 @@ draw_one_frame :: () {
 
 
   if(__s.draw_options[0].value) {
-    for 1..__s.vectors.count - 1 {
-      if (xx it > __s.draw_line_limit) break;
+    for __s.draw_line_index + 1..__s.vectors.count - 1 {
+      if (xx it > __s.draw_line_index + __s.draw_line_limit) break;
       draw_line(__s.vectors[it -1], __s.vectors[it], 10.0);
     }
   }
   if(__s.draw_options[1].value) {
-    for 2..__s.vectors.count - 2 {
-      if (xx it > __s.draw_line_limit) break;
+    for __s.draw_line_index + 2..__s.vectors.count - 2 {
+      if (xx it > __s.draw_line_index + __s.draw_line_limit) break;
       draw_line(__s.vectors[0], __s.vectors[it], 10.0);
     }
   }
-  if(__s.draw_options[2].value) {
+  if(__s.draw_options[0].value) {
     if (__s.vectors.count > 2) {
-      if (xx __s.vectors.count - 1  <= __s.draw_line_limit) {
+      if (xx __s.vectors.count - 1  <= __s.draw_line_index + __s.draw_line_limit) {
         draw_line(__s.vectors[__s.vectors.count - 1], __s.vectors[0], 10.0);
       }
     }
   }
 
-  if(__s.draw_options[3].value) {
+  if(__s.draw_options[1].value) {
     if (__s.vectors.count > 2) {
       // how do I make a copy of vectors
       // we should just allocate this to temporary memory?
       
       v : [..] Vector2;
       v.allocator = temp;
-      for __s.vectors {
-        if (xx it_index > __s.draw_line_limit) break;
-        array_add(*v, it);
+      for __s.draw_line_index .. __s.vectors.count - 1 {
+        if (xx it > __s.draw_line_index + __s.draw_line_limit) break;
+        array_add(*v, __s.vectors[it]);
       }
       /*
       v := array_copy(__s.vectors);
@@ -255,10 +253,10 @@ draw_one_frame :: () {
 
       x, y:= WindowCreation.get_mouse_pointer_position(__s.window, true);
 
-      idx :u32= 1;
+      idx :u32= xx (__s.draw_line_index + 1);
       // maybe we should do count - 2
       while idx < v.count-1 {
-        if (xx idx > __s.draw_line_limit) break;
+        if (xx idx > __s.draw_line_index + __s.draw_line_limit) break;
         p1 := v[idx-1 % v.count];
         p2 := v[idx];
         p3 := v[idx+1 % v.count]; // maybe we should just not do this for the last one.
@@ -274,14 +272,16 @@ draw_one_frame :: () {
         draw_line(p1, p3, 10);
         array_ordered_remove_by_index(*v, idx);
       }
+      /*
       for 1..__s.vectors.count -1 {
-        if (it > __s.draw_line_limit) break;
+        if (it > __s.draw_line_index + __s.draw_line_limit) break;
         draw_dot_product(__s.vectors[it-1], .{xx x, xx y}, __s.vectors[it]);
       }
 
-      if (__s.draw_line_limit >= __s.vectors.count) {
+      if (__s.draw_line_index + __s.draw_line_limit >= __s.vectors.count) {
         draw_dot_product(__s.vectors[__s.vectors.count-1], .{xx x, xx y}, __s.vectors[0]);
       }
+      */
     }
   }
 
