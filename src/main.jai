@@ -42,11 +42,7 @@ main :: () {
   quit := false;
 
   g := array_add(*__s.draw_options);
-  g.name = "Outline";
-  g.value = true;
-
-  g = array_add(*__s.draw_options);
-  g.name = "Lines";
+  g.name = "Triangles";
   g.value = true;
 
   g = array_add(*__s.draw_options);
@@ -228,7 +224,7 @@ draw_one_frame :: () {
         slider(s, *__s.draw_line_limit, 0, xx __s.vectors.count, 1, *slider_theme, "limit ");
         s.y += s.h * 1.2;
 
-        slider(s, *__s.loop_speed, 0, 25, 1, *slider_theme, "speed ");
+        slider(s, *__s.loop_speed, 0, 10, 1, *slider_theme, "speed ");
         s.y += s.h * 1.2;
 
         {
@@ -282,85 +278,89 @@ draw_one_frame :: () {
 
 
 
-  // draw outline
-  if(__s.draw_options[0].value) {
-    for __s.draw_line_start + 1..__s.vectors.count - 1 {
-      if (xx it > __s.draw_line_start + __s.draw_line_limit) break;
-      draw_line(__s.vectors[it -1], __s.vectors[it], 10.0, __s.secondary_color);
-    }
-    if (__s.vectors.count > 2) {
-      if (xx __s.vectors.count - 1  < __s.draw_line_start + __s.draw_line_limit) {
-        draw_line(__s.vectors[__s.vectors.count - 1], __s.vectors[0], 10.0, __s.secondary_color);
-      }
+  // draw outlines
+  for __s.draw_line_start + 1..__s.vectors.count - 1 {
+    if (xx it > __s.draw_line_start + __s.draw_line_limit) break;
+    draw_line(__s.vectors[it -1], __s.vectors[it], 10.0, __s.secondary_color);
+  }
+  // draw last outline
+  if (__s.vectors.count > 2) {
+    if (xx __s.vectors.count - 1  < __s.draw_line_start + __s.draw_line_limit) {
+      draw_line(__s.vectors[__s.vectors.count - 1], __s.vectors[0], 10.0, __s.secondary_color);
     }
   }
-  if(__s.draw_options[1].value) {
+
+  // draw triangle outlines
+  if(__s.draw_options[0].value) {
     for __s.draw_line_start + 2..__s.vectors.count - 2 {
       if (xx it > __s.draw_line_start + __s.draw_line_limit) break;
       draw_line(__s.vectors[0], __s.vectors[it], 10.0, __s.primary_color);
     }
   }
 
-    if (__s.vectors.count > 2) {
-      // how do I make a copy of vectors
-      // we should just allocate this to temporary memory?
-      
-      v : [..] Vector2;
-      v.allocator = temp;
-      if(__s.draw_options[1].value) {
-        for __s.draw_line_start .. __s.vectors.count - 1 {
-          if (xx it > __s.draw_line_start + __s.draw_line_limit) break;
-          array_add(*v, __s.vectors[it]);
-        }
-      /*
-      v := array_copy(__s.vectors);
-      defer array_free(v);
-      */
+  if (__s.vectors.count > 2) {
+    // how do I make a copy of vectors
+    // we should just allocate this to temporary memory?
+    
+    v : [..] Vector2;
+    v.allocator = temp;
+    for __s.draw_line_start .. __s.vectors.count - 1 {
+      if (xx it > __s.draw_line_start + __s.draw_line_limit) break;
+      array_add(*v, __s.vectors[it]);
+    }
+    /*
+    v := array_copy(__s.vectors);
+    defer array_free(v);
+    */
 
-      origin := v[0];
-      color : Vector4 = .{1,1,1,1};
-      color.xyz = __s.secondary_color;
+    origin := v[0];
+    color : Vector4 = .{1,1,1,1};
+    color.xyz = __s.secondary_color;
 
-      mouse_x, mouse_y:= WindowCreation.get_mouse_pointer_position(__s.window, true);
+    mouse_x, mouse_y:= WindowCreation.get_mouse_pointer_position(__s.window, true);
 
-      idx :u32= xx (__s.draw_line_start + 1);
-      // maybe we should do count - 2
-        while idx < v.count-1 {
-          if (xx idx > __s.draw_line_start + __s.draw_line_limit) break;
-          p1 := v[idx-1 % v.count];
-          p2 := v[idx];
-          p3 := v[idx+1 % v.count]; // maybe we should just not do this for the last one.
+    idx :u32= xx (__s.draw_line_start + 1);
+    // maybe we should do count - 2
+    while idx < v.count-1 {
+      if (xx idx > __s.draw_line_start + __s.draw_line_limit) break;
+      p1 := v[idx-1 % v.count];
+      p2 := v[idx];
+      p3 := v[idx+1 % v.count]; // maybe we should just not do this for the last one.
 
-          // check if this triangle has any values in it.
-          Simp.immediate_triangle(
-            .{p1.x, p1.y, 1.0}, 
-            .{p2.x, p2.y, 0}, 
-            .{p3.x, p3.y, 0}, 
-            color, color, color);
-          draw_line(p1, p3, 10, __s.primary_color);
-          array_ordered_remove_by_index(*v, idx);
-        }
+      // check if this triangle has any values in it.
+      if (__s.draw_options[0].value) {
+        Simp.immediate_triangle(
+          .{p1.x, p1.y, 1.0}, 
+          .{p2.x, p2.y, 0}, 
+          .{p3.x, p3.y, 0}, 
+          color, color, color);
+        draw_line(p1, p3, 10, __s.primary_color);
       }
-      if(__s.draw_options[2].value) {
-        for __s.draw_line_start + 1..__s.vectors.count -1 {
-          if (it > __s.draw_line_start + __s.draw_line_limit) break;
-          draw_dot_product(__s.vectors[it-1], .{xx mouse_x, xx mouse_y}, __s.vectors[it]);
-        }
-
-        // connect end to start
-        if (__s.draw_line_start + __s.draw_line_limit >= __s.vectors.count) {
-          draw_dot_product(__s.vectors[__s.vectors.count-1], .{xx mouse_x, xx mouse_y}, __s.vectors[0]);
-        }
+      array_ordered_remove_by_index(*v, idx);
+    }
+    if(__s.draw_options[1].value) {
+      for __s.draw_line_start + 1..__s.vectors.count -1 {
+        if (it > __s.draw_line_start + __s.draw_line_limit) break;
+        draw_dot_product(__s.vectors[it-1], .{xx mouse_x, xx mouse_y}, __s.vectors[it]);
       }
+
+      // connect end to start
+      if (__s.draw_line_start + __s.draw_line_limit >= __s.vectors.count) {
+        draw_dot_product(__s.vectors[__s.vectors.count-1], .{xx mouse_x, xx mouse_y}, __s.vectors[0]);
+      }
+    }
   }
 
 
   Simp.immediate_flush();
   Simp.swap_buffers(__s.window);
   memory_visualizer_per_frame_update();
+
+  sleep_milliseconds(1); 
   if __s.loop_drawing {
     now := current_time_monotonic();
-    __s.loop_timer += to_milliseconds(now - start_time) * __s.loop_speed; 
+    ms_passed:= to_milliseconds(now - start_time);
+    __s.loop_timer += ms_passed * __s.loop_speed; 
     print("loop timer %\n", __s.loop_timer);
     if __s.loop_timer > 100 {
       __s.loop_timer = 0;
