@@ -312,30 +312,22 @@ draw_one_frame :: () {
     mouse_x, mouse_y := WindowCreation.get_mouse_pointer_position(__s.window, true);
 
     idx := 0;
-    print("count %\n", v.count - 1);
     while idx <= v.count-1 {
-      print("while ");
       p1 : Vector2;
       if idx - 1 < 0 {
-        print("% ", v.count - 1);
         p1 = v[v.count - 1];
       } else {
-        print("% ", idx - 1);
         p1 = v[idx - 1];
       } // if
 
       p2 := v[idx];
-      print("% ", idx);
 
       p3 : Vector2;
       if (idx + 1) >= v.count {
         p3 = v[0];
-        print("% ", 0);
       } else {
-        print("% ", idx + 1);
         p3 = v[idx+1]; // maybe we should just not do this for the last one.
       } // if
-      print("\n");
 
       // check if this triangle has any values in it.
       if __s.draw_options[0].value {
@@ -364,13 +356,15 @@ draw_one_frame :: () {
     if(__s.draw_options[1].value) {
       for __s.draw_line_start + 1..__s.vectors.count -1 {
         if (it > __s.draw_line_start + __s.draw_line_limit) break;
-        draw_dot_product(__s.vectors[it-1], .{xx mouse_x, xx mouse_y}, __s.vectors[it]);
+        draw_dot_product(__s.vectors[it-1], __s.vectors[it], .{xx mouse_x, xx mouse_y});
       }
 
+      /* seth
       // connect end to start
       if (__s.draw_line_start + __s.draw_line_limit >= __s.vectors.count-1) {
-        draw_dot_product(__s.vectors[__s.vectors.count-1], .{xx mouse_x, xx mouse_y}, __s.vectors[0]);
+        draw_dot_product(__s.vectors[__s.vectors.count-1], __s.vectors[0], .{xx mouse_x, xx mouse_y});
       }
+      */
     }
   }
 
@@ -397,27 +391,33 @@ draw_one_frame :: () {
 
 }
 
-draw_dot_product :: (origin:Vector2,v1:Vector2,mouse:Vector2) {
-  p1 := mouse - origin;
-  p1 = .{p1.y, -p1.x};
+draw_dot_product :: (origin:Vector2, v1:Vector2, mouse:Vector2) {
+
+  rotated_point := v1 - origin;
+  rotated_point = .{rotated_point.y, -rotated_point.x};
 
   // outside
   color := Vector3.{0.91,0.22,0.52};
 
-  dot_product_1 := dot_product(v1 - origin, p1);
+  adjusted_mouse := Vector2.{mouse.x, __s.window_height - mouse.y};
+
+  dot_product_1 := dot_product(rotated_point, adjusted_mouse - origin);
+
   if dot_product_1 < 0 {
     // inside
     color = .{0.07,0.48,0.34};
   }
-  draw_line(origin, origin + p1, 1, color);
+
+  draw_line(origin, origin + rotated_point, 1, color);
   /*
+
   label_theme := __s.theme.label_theme;
   label_theme.text_color.xyz = color;
 
   //label_theme.alignment = .Left;
   k := __s.window_height * .05;
-  r := get_rect(origin.x, origin.y, k * 2, k * 1);
-  label_text := tprint("dot: %", ifx dot_product_1 > 0 then "+" else "-");
+  r := get_rect(origin.x, origin.y, k * 6, k * 1);
+  label_text := tprint("dot: % %", ifx dot_product_1 > 0 then "+" else "-", dot_product_1);
   label(r, label_text, *label_theme);
   */
 }
