@@ -309,7 +309,7 @@ draw_one_frame :: () {
     color : Vector4 = .{1,1,1,1};
     color.xyz = __s.secondary_color;
 
-    mouse_x, mouse_y:= WindowCreation.get_mouse_pointer_position(__s.window, true);
+    mouse_x, mouse_y := WindowCreation.get_mouse_pointer_position(__s.window, true);
 
     idx := 0;
     print("count %\n", v.count - 1);
