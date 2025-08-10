@@ -16,7 +16,6 @@ State :: struct {
     theme : Overall_Theme;
     working_directory_set : bool;
     font: *Simp.Dynamic_Font;
-    current_time: float64;
     vectors: [..] Vector2;
     mouse_press_pos: Vector2 = .{-1,-1}; 
     primary_color: Vector3 = .{0.54, 0.79, 0.77};
@@ -28,7 +27,7 @@ State :: struct {
     draw_line_limit: s32 = 0;
     loop_drawing:= false;
     loop_speed :float= 1;
-    loop_timer :float64= 0;
+    loop_timer :float64 = 0;
 }
 
 __s : State;
@@ -64,7 +63,7 @@ main :: () {
 
 
   while !quit {
-    __s.current_time = seconds_since_init();
+    start_time = current_time_monotonic();
     Input.update_window_events();
     for Input.get_window_resizes() {
       Simp.update_window(it.window);
@@ -159,6 +158,7 @@ TestEnum :: enum {
   Testing3;
 }
 
+start_time : Apollo_Time;
 
 draw_one_frame :: () {
   proc := default_theme_procs[ Default_Themes.Default ];
@@ -173,7 +173,8 @@ draw_one_frame :: () {
 
   {
     _, _, width, height := WindowCreation.get_dimensions(__s.window, true);
-    ui_per_frame_update(__s.window, width, height, __s.current_time);
+    ui_per_frame_update(__s.window, width, height, to_float64_seconds(current_time_monotonic()));
+
   }
 
   // 'k' is some resolution-adjusting unit of distance. Right now it is
@@ -227,7 +228,7 @@ draw_one_frame :: () {
         slider(s, *__s.draw_line_limit, 0, xx __s.vectors.count, 1, *slider_theme, "limit ");
         s.y += s.h * 1.2;
 
-        slider(s, *__s.loop_speed, 0, 1000, 1, *slider_theme, "speed ");
+        slider(s, *__s.loop_speed, 0, 25, 1, *slider_theme, "speed ");
         s.y += s.h * 1.2;
 
         {
@@ -358,10 +359,10 @@ draw_one_frame :: () {
   Simp.swap_buffers(__s.window);
   memory_visualizer_per_frame_update();
   if __s.loop_drawing {
-    __s.loop_timer += seconds_since_init() - __s.current_time;
-    __s.loop_timer *= __s.loop_speed;
+    now := current_time_monotonic();
+    __s.loop_timer += to_milliseconds(now - start_time) * __s.loop_speed; 
     print("loop timer %\n", __s.loop_timer);
-    if __s.loop_timer > 1 {
+    if __s.loop_timer > 100 {
       __s.loop_timer = 0;
       __s.draw_line_start += 1;
       if (__s.draw_line_start > __s.vectors.count -1) {
