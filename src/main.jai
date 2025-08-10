@@ -273,71 +273,94 @@ draw_one_frame :: () {
 
   } // end show ui
 
-
-
-
-
-
   // draw outlines
-  for __s.draw_line_start + 1..__s.vectors.count - 1 {
-    if (xx it > __s.draw_line_start + __s.draw_line_limit) break;
+  for 1..__s.vectors.count - 1 {
     draw_line(__s.vectors[it -1], __s.vectors[it], 10.0, __s.secondary_color);
   }
   // draw last outline
   if (__s.vectors.count > 2) {
-    if (xx __s.vectors.count - 1  < __s.draw_line_start + __s.draw_line_limit) {
-      draw_line(__s.vectors[__s.vectors.count - 1], __s.vectors[0], 10.0, __s.secondary_color);
-    }
+    draw_line(__s.vectors[__s.vectors.count - 1], __s.vectors[0], 10.0, __s.secondary_color);
   }
 
   // draw triangle outlines
+  /*
   if(__s.draw_options[0].value) {
     for __s.draw_line_start + 2..__s.vectors.count - 2 {
       if (xx it > __s.draw_line_start + __s.draw_line_limit) break;
       draw_line(__s.vectors[0], __s.vectors[it], 10.0, __s.primary_color);
     }
   }
+  */
 
   if (__s.vectors.count > 2) {
-    // how do I make a copy of vectors
-    // we should just allocate this to temporary memory?
-    
+    //
+    // draw triangles
+    // 
     v : [..] Vector2;
     v.allocator = temp;
-    for __s.draw_line_start .. __s.vectors.count - 1 {
-      if (xx it > __s.draw_line_start + __s.draw_line_limit) break;
+    final_idx := __s.vectors.count - 1;
+    if (final_idx >= __s.draw_line_start + __s.draw_line_limit) {
+      final_idx = __s.draw_line_start + __s.draw_line_limit;
+    }
+    for __s.draw_line_start .. final_idx {
       array_add(*v, __s.vectors[it]);
     }
-    /*
-    v := array_copy(__s.vectors);
-    defer array_free(v);
-    */
 
-    origin := v[0];
     color : Vector4 = .{1,1,1,1};
     color.xyz = __s.secondary_color;
 
     mouse_x, mouse_y:= WindowCreation.get_mouse_pointer_position(__s.window, true);
 
-    idx :u32= xx (__s.draw_line_start + 1);
-    // maybe we should do count - 2
-    while idx < v.count-1 {
-      if (xx idx > __s.draw_line_start + __s.draw_line_limit) break;
-      p1 := v[idx-1 % v.count];
+    idx := 0;
+    print("count %\n", v.count - 1);
+    while idx <= v.count-1 {
+      print("while ");
+      p1 : Vector2;
+      if idx - 1 < 0 {
+        print("% ", v.count - 1);
+        p1 = v[v.count - 1];
+      } else {
+        print("% ", idx - 1);
+        p1 = v[idx - 1];
+      } // if
+
       p2 := v[idx];
-      p3 := v[idx+1 % v.count]; // maybe we should just not do this for the last one.
+      print("% ", idx);
+
+      p3 : Vector2;
+      if (idx + 1) >= v.count {
+        p3 = v[0];
+        print("% ", 0);
+      } else {
+        print("% ", idx + 1);
+        p3 = v[idx+1]; // maybe we should just not do this for the last one.
+      } // if
+      print("\n");
 
       // check if this triangle has any values in it.
-      if (__s.draw_options[0].value) {
+      if __s.draw_options[0].value {
         Simp.immediate_triangle(
           .{p1.x, p1.y, 1.0}, 
           .{p2.x, p2.y, 0}, 
           .{p3.x, p3.y, 0}, 
           color, color, color);
+        draw_line(p1, p2, 10, __s.primary_color);
         draw_line(p1, p3, 10, __s.primary_color);
-      }
+        draw_line(p3, p2, 10, __s.primary_color);
+      } // if
+
       array_ordered_remove_by_index(*v, idx);
-    }
+
+    } // while
+    //
+    // end draw triangles
+    // 
+
+
+    //
+    // draw dot product
+    // 
+
     if(__s.draw_options[1].value) {
       for __s.draw_line_start + 1..__s.vectors.count -1 {
         if (it > __s.draw_line_start + __s.draw_line_limit) break;
@@ -345,7 +368,7 @@ draw_one_frame :: () {
       }
 
       // connect end to start
-      if (__s.draw_line_start + __s.draw_line_limit >= __s.vectors.count) {
+      if (__s.draw_line_start + __s.draw_line_limit >= __s.vectors.count-1) {
         draw_dot_product(__s.vectors[__s.vectors.count-1], .{xx mouse_x, xx mouse_y}, __s.vectors[0]);
       }
     }
