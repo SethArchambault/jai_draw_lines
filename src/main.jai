@@ -47,16 +47,7 @@ main :: () {
 
   g = array_add(*__s.draw_options);
   g.name = "Dot Product";
-  g.value = true;
-
-  /*
-  g = array_add(*__s.draw_options);
-  g.name = "Draw 4";
-  g.value = true;
-  */
-
-
-
+  g.value = false;
 
   while !quit {
     start_time = current_time_monotonic();
@@ -73,9 +64,7 @@ main :: () {
     k := __s.window_height * .05;
     for Input.events_this_frame {
       x, y := WindowCreation.get_mouse_pointer_position(__s.window, false);
-      print("y %\n", y);
       if it.type == .QUIT then quit = true;
-      //print("% %\n", it.type, it.key_code);
 
       if it.type == .MOUSE_WHEEL{
         __s.draw_line_start -= xx (it.wheel_delta * 0.15);
@@ -94,7 +83,6 @@ main :: () {
               case #char "R";
               array_reset(*__s.vectors);
               case #char "2";
-              print("2 tapped\n");
             }
           }
           if xx x > 5 * k {
@@ -319,8 +307,8 @@ draw_one_frame :: () {
         color:= Vector4.{1,1,1,1};
         color.xyz = __s.secondary_color;
         mouse := Vector2.{ mouse_x.(float), mouse_y.(float)};
-        //if !is_another_vertex_inside_triangle(p1, p2, p3, array_view(v, idx +2)) {
-        if is_vertex_inside_triangle(p1, p2, p3, mouse) {
+        if !is_another_vertex_inside_triangle(p1, p2, p3, array_view(v, idx +2)) {
+        //if is_vertex_inside_triangle(p1, p2, p3, mouse) {
           color.xyz = __s.secondary_color;
           Simp.immediate_triangle(
             .{p1.x, p1.y, 1.0}, 
@@ -362,7 +350,6 @@ draw_one_frame :: () {
     now := current_time_monotonic();
     ms_passed:= to_milliseconds(now - start_time);
     __s.loop_timer += ms_passed * __s.loop_speed; 
-    print("loop timer %\n", __s.loop_timer);
     if __s.loop_timer > 100 {
       __s.loop_timer = 0;
       __s.draw_line_start += 1;
@@ -392,7 +379,6 @@ is_another_vertex_inside_triangle :: (p1:Vector2, p2:Vector2, p3:Vector2, arr: [
   for point: arr {
     if is_vertex_inside_triangle(p1, p2, p3, point)
     {
-      print("vertex inside of triangle\n");
       return true;
     }
   }
