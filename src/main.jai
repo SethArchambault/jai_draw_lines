@@ -73,6 +73,7 @@ main :: () {
     k := __s.window_height * .05;
     for Input.events_this_frame {
       x, y := WindowCreation.get_mouse_pointer_position(__s.window, false);
+      print("y %\n", y);
       if it.type == .QUIT then quit = true;
       //print("% %\n", it.type, it.key_code);
 
@@ -156,6 +157,13 @@ TestEnum :: enum {
 
 start_time : Apollo_Time;
 
+Triangle :: struct {
+  p1: Vector2;
+  p2: Vector2;
+  p3: Vector2;
+}
+
+
 draw_one_frame :: () {
   proc := default_theme_procs[ Default_Themes.Default ];
   __s.theme = proc();
@@ -186,90 +194,75 @@ draw_one_frame :: () {
 
   mouse_x, mouse_y := WindowCreation.get_mouse_pointer_position(__s.window, false);
   if mouse_x < 500 {
-     {
-        r := get_rect(0*k, 0*k, 5*k, 20*k);
+    r := get_rect(0*k, 0*k, 5*k, 20*k);
 
-        theme := __s.theme.scrollable_region_theme;
-        region, inside := begin_scrollable_region(r, *theme);
-        s := inside;
-        s.y = s.y;
-        s.h = xx __s.font.character_height;
-        s.y -= __s.scroll_value_dragdrop_region;
-        //s.w = 4 * k;
+    theme := __s.theme.scrollable_region_theme;
+    region, inside := begin_scrollable_region(r, *theme);
+    s := inside;
+    s.y = s.y;
+    s.h = xx __s.font.character_height;
+    s.y -= __s.scroll_value_dragdrop_region;
 
+    checkbox_theme := __s.theme.checkbox_theme;
+    for * __s.draw_options {
+      pressed := base_checkbox(s, it.name, it.value, *checkbox_theme, it_index);
+      it.value ^= pressed;
+      s.y += floor(__s.font.character_height * 1.1 + 0.5);
+    }
 
-          checkbox_theme := __s.theme.checkbox_theme;
-          for * __s.draw_options{
-              pressed := base_checkbox(s, it.name, it.value, *checkbox_theme, it_index);
-              it.value ^= pressed;
-              s.y += floor(__s.font.character_height * 1.1 + 0.5);
-
-          }
-
-
-
-        slider_theme := __s.theme.slider_theme;
-        slider_theme.foreground.font = __s.font;
-        slider_theme.surface_style = .NUB;
-        slider(s, *__s.draw_line_start, 0, xx __s.vectors.count, 1, *slider_theme, "start ");
-        if __s.draw_line_start > __s.vectors.count - 1 {
-          if (__s.vectors.count > 0) {
-            __s.draw_line_start = cast(s32) __s.vectors.count - 1;
-          } else {
-            __s.draw_line_start = 0;
-          }
-        }
-        s.y += s.h * 1.2;
-
-        slider(s, *__s.draw_line_limit, 0, xx __s.vectors.count, 1, *slider_theme, "limit ");
-        s.y += s.h * 1.2;
-
-        slider(s, *__s.loop_speed, 0, 10, 1, *slider_theme, "speed ");
-        s.y += s.h * 1.2;
-
-        {
-            pressed := base_checkbox(s, "Loop", __s.loop_drawing, *checkbox_theme, 0);
-            __s.loop_drawing ^= pressed;
-            s.y += floor(__s.font.character_height * 1.1 + 0.5);
-        }
-        {
-          pressed := button(s, "Reset", *__s.button_theme);
-          s.y += floor(__s.font.character_height * 1.1 + 0.5);
-          if pressed  {
-            array_reset(*__s.vectors);
-            __s.draw_line_start = 0;
-            __s.draw_line_limit = 0;
-          }
-        }
-
-
-        aspect := get_desired_aspect_ratio(*__s.theme.color_picker_theme);
-
-        {
-          s.y += 1 * k;
-          picker := get_rect(s.x, s.y, s.w, 5*k/aspect);
-          color_picker_theme := *__s.theme.color_picker_theme;
-          applied := color_picker(picker, *__s.secondary_color, color_picker_theme);
-          s.y += picker.h;
-        }
-
-        {
-          s.y += 1 * k;
-          picker := get_rect(s.x, s.y, s.w, 5*k/aspect);
-          color_picker_theme := *__s.theme.color_picker_theme;
-          applied := color_picker(picker, *__s.primary_color, color_picker_theme);
-          s.y += picker.h;
-        }
-
-
-
-        end_scrollable_region(region, s.x + s.w, s.y, *__s.scroll_value_dragdrop_region);
-
+    slider_theme := __s.theme.slider_theme;
+    slider_theme.foreground.font = __s.font;
+    slider_theme.surface_style = .NUB;
+    slider(s, *__s.draw_line_start, 0, xx __s.vectors.count, 1, *slider_theme, "start ");
+    if __s.draw_line_start > __s.vectors.count - 1 {
+      if (__s.vectors.count > 0) {
+        __s.draw_line_start = cast(s32) __s.vectors.count - 1;
+      } else {
+        __s.draw_line_start = 0;
       }
+    }
+    s.y += s.h * 1.2;
 
+    slider(s, *__s.draw_line_limit, 0, xx __s.vectors.count, 1, *slider_theme, "limit ");
+    s.y += s.h * 1.2;
 
+    slider(s, *__s.loop_speed, 0, 10, 1, *slider_theme, "speed ");
+    s.y += s.h * 1.2;
 
+    {
+      pressed := base_checkbox(s, "Loop", __s.loop_drawing, *checkbox_theme, 0);
+      __s.loop_drawing ^= pressed;
+      s.y += floor(__s.font.character_height * 1.1 + 0.5);
+    }
+    {
+      pressed := button(s, "Reset", *__s.button_theme);
+      s.y += floor(__s.font.character_height * 1.1 + 0.5);
+      if pressed  {
+        array_reset(*__s.vectors);
+        __s.draw_line_start = 0;
+        __s.draw_line_limit = 0;
+      }
+    }
 
+    aspect := get_desired_aspect_ratio(*__s.theme.color_picker_theme);
+
+    {
+      s.y += 1 * k;
+      picker := get_rect(s.x, s.y, s.w, 5*k/aspect);
+      color_picker_theme := *__s.theme.color_picker_theme;
+      applied := color_picker(picker, *__s.secondary_color, color_picker_theme);
+      s.y += picker.h;
+    }
+
+    {
+      s.y += 1 * k;
+      picker := get_rect(s.x, s.y, s.w, 5*k/aspect);
+      color_picker_theme := *__s.theme.color_picker_theme;
+      applied := color_picker(picker, *__s.primary_color, color_picker_theme);
+      s.y += picker.h;
+    }
+
+    end_scrollable_region(region, s.x + s.w, s.y, *__s.scroll_value_dragdrop_region);
 
   } // end show ui
 
@@ -282,26 +275,18 @@ draw_one_frame :: () {
     draw_line(__s.vectors[__s.vectors.count - 1], __s.vectors[0], 10.0, __s.secondary_color);
   }
 
-  // draw triangle outlines
-  /*
-  if(__s.draw_options[0].value) {
-    for __s.draw_line_start + 2..__s.vectors.count - 2 {
-      if (xx it > __s.draw_line_start + __s.draw_line_limit) break;
-      draw_line(__s.vectors[0], __s.vectors[it], 10.0, __s.primary_color);
-    }
-  }
-  */
 
   if (__s.vectors.count > 2) {
     //
     // draw triangles
     // 
-    v : [..] Vector2;
-    v.allocator = temp;
     final_idx := __s.vectors.count - 1;
     if (final_idx >= __s.draw_line_start + __s.draw_line_limit) {
       final_idx = __s.draw_line_start + __s.draw_line_limit;
     }
+
+    v : [..] Vector2;
+    v.allocator = temp;
     for __s.draw_line_start .. final_idx {
       array_add(*v, __s.vectors[it]);
     }
@@ -309,10 +294,10 @@ draw_one_frame :: () {
     color : Vector4 = .{1,1,1,1};
     color.xyz = __s.secondary_color;
 
-    mouse_x, mouse_y := WindowCreation.get_mouse_pointer_position(__s.window, true);
+    mouse_x, mouse_y := WindowCreation.get_mouse_pointer_position(__s.window, false);
 
     idx := 0;
-    while idx <= v.count-1 {
+    while idx <= v.count-3 {
       p1 : Vector2;
       if idx - 1 < 0 {
         p1 = v[v.count - 1];
@@ -331,19 +316,25 @@ draw_one_frame :: () {
 
       // check if this triangle has any values in it.
       if __s.draw_options[0].value {
-        Simp.immediate_triangle(
-          .{p1.x, p1.y, 1.0}, 
-          .{p2.x, p2.y, 0}, 
-          .{p3.x, p3.y, 0}, 
-          color, color, color);
+        color:= Vector4.{1,1,1,1};
+        color.xyz = __s.secondary_color;
+        mouse := Vector2.{ mouse_x.(float), mouse_y.(float)};
+        //if !is_another_vertex_inside_triangle(p1, p2, p3, array_view(v, idx +2)) {
+        if is_vertex_inside_triangle(p1, p2, p3, mouse) {
+          color.xyz = __s.secondary_color;
+          Simp.immediate_triangle(
+            .{p1.x, p1.y, 1.0}, 
+            .{p2.x, p2.y, 0}, 
+            .{p3.x, p3.y, 0}, 
+            color, color, color);
+        }
         draw_line(p1, p2, 10, __s.primary_color);
         draw_line(p1, p3, 10, __s.primary_color);
         draw_line(p3, p2, 10, __s.primary_color);
       } // if
-
       array_ordered_remove_by_index(*v, idx);
-
     } // while
+    
     //
     // end draw triangles
     // 
@@ -358,13 +349,6 @@ draw_one_frame :: () {
         if (it > __s.draw_line_start + __s.draw_line_limit) break;
         draw_dot_product(__s.vectors[it-1], __s.vectors[it], .{xx mouse_x, xx mouse_y});
       }
-
-      /* seth
-      // connect end to start
-      if (__s.draw_line_start + __s.draw_line_limit >= __s.vectors.count-1) {
-        draw_dot_product(__s.vectors[__s.vectors.count-1], __s.vectors[0], .{xx mouse_x, xx mouse_y});
-      }
-      */
     }
   }
 
@@ -391,6 +375,31 @@ draw_one_frame :: () {
 
 }
 
+is_vertex_inside_triangle :: (p1: Vector2, p2: Vector2, p3: Vector2, point: Vector2) -> bool {
+        v1 := p2 - p1;
+        v1 = .{ v1.y, -v1.x };
+        dp1 := dot_product(v1, point - p1);
+        v2 := p3 - p2;
+        v2 = .{ v2.y, -v2.x };
+        dp2 := dot_product(v2, point - p2);
+        v3 := p1 - p3;
+        v3 = .{ v3.y, -v3.x };
+        dp3 := dot_product(v3, point - p3);
+        return dp1 < 0 && dp2 < 0 && dp3 < 0;
+}
+
+is_another_vertex_inside_triangle :: (p1:Vector2, p2:Vector2, p3:Vector2, arr: [] Vector2) -> bool {
+  for point: arr {
+    if is_vertex_inside_triangle(p1, p2, p3, point)
+    {
+      print("vertex inside of triangle\n");
+      return true;
+    }
+  }
+  return false;
+}
+
+
 draw_dot_product :: (origin:Vector2, v1:Vector2, mouse:Vector2) {
 
   rotated_point := v1 - origin;
@@ -399,9 +408,8 @@ draw_dot_product :: (origin:Vector2, v1:Vector2, mouse:Vector2) {
   // outside
   color := Vector3.{0.91,0.22,0.52};
 
-  adjusted_mouse := Vector2.{mouse.x, __s.window_height - mouse.y};
 
-  dot_product_1 := dot_product(rotated_point, adjusted_mouse - origin);
+  dot_product_1 := dot_product(rotated_point, mouse - origin);
 
   if dot_product_1 < 0 {
     // inside
