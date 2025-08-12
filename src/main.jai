@@ -131,7 +131,7 @@ init_fonts :: () {
       set_working_directory(path);
       __s.working_directory_set = true;
   }
-  pixel_height := __s.window_height / 40;
+  pixel_height := __s.window_height / 50;
   free(__s.font);
   __s.font = Simp.get_font_at_size("../data", "OpenSans-BoldItalic.ttf", pixel_height);
   assert(__s.font != null);
@@ -264,6 +264,7 @@ draw_one_frame :: () {
   }
 
 
+
   if (__s.vectors.count > 2) {
     //
     // draw triangles
@@ -282,51 +283,74 @@ draw_one_frame :: () {
     color : Vector4 = .{1,1,1,1};
     color.xyz = __s.secondary_color;
 
-    mouse_x, mouse_y := WindowCreation.get_mouse_pointer_position(__s.window, false);
+    mouse:Vector2;
+    mouse.x, mouse.y = xx WindowCreation.get_mouse_pointer_position(__s.window, false);
 
-    idx := 0;
-    while idx <= v.count-3 {
-      p1 : Vector2;
-      if idx - 1 < 0 {
-        p1 = v[v.count - 1];
-      } else {
-        p1 = v[idx - 1];
-      } // if
-
-      p2 := v[idx];
-
-      p3 : Vector2;
-      if (idx + 1) >= v.count {
-        p3 = v[0];
-      } else {
-        p3 = v[idx+1]; // maybe we should just not do this for the last one.
-      } // if
-
+    while v.count > 2 {
       // check if this triangle has any values in it.
       if __s.draw_options[0].value {
         color:= Vector4.{1,1,1,1};
         color.xyz = __s.secondary_color;
-        mouse := Vector2.{ mouse_x.(float), mouse_y.(float)};
-        if !is_another_vertex_inside_triangle(p1, p2, p3, array_view(v, idx +2)) {
-        //if is_vertex_inside_triangle(p1, p2, p3, mouse) {
+        if !is_another_vertex_inside_triangle(v[0], v[1], v[2], array_view(v, 2)) {
+        //if is_vertex_in_right_winding_order(v[0], v[1], v[2]) {
           color.xyz = __s.secondary_color;
           Simp.immediate_triangle(
-            .{p1.x, p1.y, 1.0}, 
-            .{p2.x, p2.y, 0}, 
-            .{p3.x, p3.y, 0}, 
+            .{v[0].x, v[0].y, 1.0}, 
+            .{v[1].x, v[1].y, 0}, 
+            .{v[2].x, v[2].y, 0}, 
             color, color, color);
+          draw_line(v[0], v[1], 10, __s.primary_color);
+          draw_line(v[0], v[2], 10, __s.primary_color);
+          draw_line(v[2], v[1], 10, __s.primary_color);
+          array_ordered_remove_by_index(*v, 1);
+        } else {
+          array_ordered_remove_by_index(*v, 0);
         }
-        draw_line(p1, p2, 10, __s.primary_color);
-        draw_line(p1, p3, 10, __s.primary_color);
-        draw_line(p3, p2, 10, __s.primary_color);
       } // if
-      array_ordered_remove_by_index(*v, idx);
     } // while
     
     //
     // end draw triangles
     // 
 
+
+    // draw angles
+    /*
+    {
+      k := __s.window_height * .05;
+      label_theme := __s.theme.label_theme;
+      label_theme.font = __s.font;
+      label_theme.alignment = .Left;
+      //label_theme.text_color.xyz = color;
+      // draw angles
+      for idx: 0 .. __s.vectors.count - 2 {
+        p1 := __s.vectors[idx];
+        p2 := __s.vectors[idx+1];
+        r := get_rect(p1.x - 1 * k, p1.y, 4 * k, 1 * k);
+        delta := p1 - p2;
+        angle := atan(delta.y / delta.x) / PI * 180;
+        label(r, tprint("angle: %", angle), *label_theme);
+      }
+    }
+    */
+
+    // draw winding order
+    /*
+    {
+      k := __s.window_height * .05;
+      label_theme := __s.theme.label_theme;
+      label_theme.font = __s.font;
+      label_theme.alignment = .Left;
+      //label_theme.text_color.xyz = color;
+      for idx: 0 .. __s.vectors.count - 2 {
+        p1 := __s.vectors[idx];
+        p2 := __s.vectors[idx+1];
+        r := get_rect(p1.x - 1 * k, p1.y, 4 * k, 1 * k);
+        delta := p2 - p1;
+        label(r, tprint("product: %", delta.x * delta.y), *label_theme);
+      }
+    }
+    */
 
     //
     // draw dot product
@@ -335,7 +359,7 @@ draw_one_frame :: () {
     if(__s.draw_options[1].value) {
       for __s.draw_line_start + 1..__s.vectors.count -1 {
         if (it > __s.draw_line_start + __s.draw_line_limit) break;
-        draw_dot_product(__s.vectors[it-1], __s.vectors[it], .{xx mouse_x, xx mouse_y});
+        draw_dot_product(__s.vectors[it-1], __s.vectors[it], .{xx mouse.x, xx mouse.y});
       }
     }
   }
@@ -360,6 +384,20 @@ draw_one_frame :: () {
   }
   reset_temporary_storage();
 
+}
+
+is_vertex_in_right_winding_order :: (p1:Vector2, p2:Vector2, p3:Vector2) -> bool {
+  sum : float = 0;
+  {
+    delta := p2 - p1;
+    sum += delta.x * delta.y;
+  }
+  {
+    delta := p3 - p2;
+    sum += delta.x * delta.y;
+  }
+
+  return sum >= 0;
 }
 
 is_vertex_inside_triangle :: (p1: Vector2, p2: Vector2, p3: Vector2, point: Vector2) -> bool {
