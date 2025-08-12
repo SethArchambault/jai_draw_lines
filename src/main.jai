@@ -263,6 +263,9 @@ draw_one_frame :: () {
     draw_line(__s.vectors[__s.vectors.count - 1], __s.vectors[0], 10.0, __s.secondary_color);
   }
 
+  // @todo- separate out creation of triangles from the drawing of the triangles
+  // then use the determinant to detect winding order
+  // https://github.com/Muzkaw/Ear-clipping-triangulation/blob/master/Ear%20clipping%20triangulation/Triangulation.cpp
 
 
   if (__s.vectors.count > 2) {
@@ -291,8 +294,8 @@ draw_one_frame :: () {
       if __s.draw_options[0].value {
         color:= Vector4.{1,1,1,1};
         color.xyz = __s.secondary_color;
-        if !is_another_vertex_inside_triangle(v[0], v[1], v[2], array_view(v, 2)) {
-        //if is_vertex_in_right_winding_order(v[0], v[1], v[2]) {
+        if !is_another_vertex_inside_triangle(v[0], v[1], v[2], array_view(v, 2)) &&
+            is_vertex_in_right_winding_order(v[0], v[1], v[2]) {
           color.xyz = __s.secondary_color;
           Simp.immediate_triangle(
             .{v[0].x, v[0].y, 1.0}, 
@@ -387,17 +390,9 @@ draw_one_frame :: () {
 }
 
 is_vertex_in_right_winding_order :: (p1:Vector2, p2:Vector2, p3:Vector2) -> bool {
-  sum : float = 0;
-  {
-    delta := p2 - p1;
-    sum += delta.x * delta.y;
-  }
-  {
-    delta := p3 - p2;
-    sum += delta.x * delta.y;
-  }
-
-  return sum >= 0;
+  u := p2 - p1;
+  v := p3 - p2;
+  return u.x*v.y - u.y*v.x > 0;
 }
 
 is_vertex_inside_triangle :: (p1: Vector2, p2: Vector2, p3: Vector2, point: Vector2) -> bool {
