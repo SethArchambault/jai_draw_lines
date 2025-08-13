@@ -294,9 +294,12 @@ draw_one_frame :: () {
       if __s.draw_options[0].value {
         color:= Vector4.{1,1,1,1};
         color.xyz = __s.secondary_color;
-        if !is_another_vertex_inside_triangle(v[0], v[1], v[2], array_view(v, 2)) &&
-            is_vertex_in_right_winding_order(v[0], v[1], v[2]) {
-          color.xyz = __s.secondary_color;
+        if is_vertex_inside_triangle(v[2], v[1], v[0], mouse) {
+          color.xyz = __s.primary_color;
+        }
+        //if true {
+        //if !is_another_vertex_inside_triangle(v[0], v[1], v[2], array_view(v, 2)) &&
+           if is_vertex_in_right_winding_order(v[0], v[1], v[2]) {
           Simp.immediate_triangle(
             .{v[0].x, v[0].y, 1.0}, 
             .{v[1].x, v[1].y, 0}, 
@@ -388,24 +391,22 @@ draw_one_frame :: () {
   reset_temporary_storage();
 
 }
-
-is_vertex_in_right_winding_order :: (p1:Vector2, p2:Vector2, p3:Vector2) -> bool {
-  u := p2 - p1;
-  v := p3 - p2;
-  return u.x*v.y - u.y*v.x > 0;
+determinant :: (p1:Vector2, p2:Vector2) -> float {
+  return p1.x*p2.y - p1.y*p2.x;
 }
 
-is_vertex_inside_triangle :: (p1: Vector2, p2: Vector2, p3: Vector2, point: Vector2) -> bool {
-        v1 := p2 - p1;
-        v1 = .{ v1.y, -v1.x };
-        dp1 := dot_product(v1, point - p1);
-        v2 := p3 - p2;
-        v2 = .{ v2.y, -v2.x };
-        dp2 := dot_product(v2, point - p2);
-        v3 := p1 - p3;
-        v3 = .{ v3.y, -v3.x };
-        dp3 := dot_product(v3, point - p3);
-        return dp1 < 0 && dp2 < 0 && dp3 < 0;
+is_vertex_in_right_winding_order :: (a:Vector2, b:Vector2, c:Vector2) -> bool {
+  return determinant(b-a, c-b) > 0;
+}
+
+is_vertex_inside_triangle :: (a: Vector2, b: Vector2, c: Vector2, point: Vector2) -> bool {
+  ab := b - a;
+  bc := c - b;
+  ca := a - c;
+
+  return determinant(ab, point-a) < 0 && 
+         determinant(bc, point-b) < 0 && 
+         determinant(ca, point-c) < 0;
 }
 
 is_another_vertex_inside_triangle :: (p1:Vector2, p2:Vector2, p3:Vector2, arr: [] Vector2) -> bool {
