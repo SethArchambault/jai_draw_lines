@@ -63,7 +63,7 @@ main :: () {
     }
     k := __s.window_height * .05;
     for Input.events_this_frame {
-      x, y := WindowCreation.get_mouse_pointer_position(__s.window, false);
+      mouse_x, mouse_y := WindowCreation.get_mouse_pointer_position(__s.window, false);
       if it.type == .QUIT then quit = true;
 
       if it.type == .MOUSE_WHEEL{
@@ -85,7 +85,7 @@ main :: () {
               case #char "2";
             }
           }
-          if xx x > 5 * k {
+          if xx mouse_x > 5 * k {
             if it.key_pressed {
               if it.shift_pressed && it.key_code == .ARROW_RIGHT {
                 __s.draw_line_limit += 1;
@@ -110,11 +110,11 @@ main :: () {
                 }
               }
               if it.key_code == .MOUSE_BUTTON_LEFT || it.key_code == .SPACEBAR {
-                  __s.mouse_press_pos = .{xx x, xx y};
+                  __s.mouse_press_pos = .{xx mouse_x, xx mouse_y};
                   if __s.draw_line_limit == __s.vectors.count  {
                     __s.draw_line_limit += 1;
                   }
-                  array_add(*__s.vectors, .{xx x, xx y});
+                  array_add(*__s.vectors, .{xx mouse_x, xx mouse_y});
               }
             }
           }
@@ -286,20 +286,20 @@ draw_one_frame :: () {
     color : Vector4 = .{1,1,1,1};
     color.xyz = __s.secondary_color;
 
-    mouse:Vector2;
-    mouse.x, mouse.y = xx WindowCreation.get_mouse_pointer_position(__s.window, false);
+    mouse_x, mouse_y := WindowCreation.get_mouse_pointer_position(__s.window, false);
 
     while v.count > 2 {
       // check if this triangle has any values in it.
       if __s.draw_options[0].value {
         color:= Vector4.{1,1,1,1};
         color.xyz = __s.secondary_color;
-        if is_vertex_inside_triangle(v[2], v[1], v[0], mouse) {
+        /*
+        if is_vertex_inside_triangle(v[2], v[1], v[0], .{xx mouse_x, xx mouse_y}) {
           color.xyz = __s.primary_color;
         }
-        //if true {
-        //if !is_another_vertex_inside_triangle(v[0], v[1], v[2], array_view(v, 2)) &&
-           if is_vertex_in_right_winding_order(v[0], v[1], v[2]) {
+        */
+        if !is_another_vertex_inside_triangle(v[2], v[1], v[0], array_view(v, 2)) &&
+            is_vertex_in_right_winding_order(v[2], v[1], v[0]) {
           Simp.immediate_triangle(
             .{v[0].x, v[0].y, 1.0}, 
             .{v[1].x, v[1].y, 0}, 
@@ -365,7 +365,7 @@ draw_one_frame :: () {
     if(__s.draw_options[1].value) {
       for __s.draw_line_start + 1..__s.vectors.count -1 {
         if (it > __s.draw_line_start + __s.draw_line_limit) break;
-        draw_dot_product(__s.vectors[it-1], __s.vectors[it], .{xx mouse.x, xx mouse.y});
+        draw_dot_product(__s.vectors[it-1], __s.vectors[it], .{xx mouse_x, xx mouse_y});
       }
     }
   }
@@ -396,14 +396,13 @@ determinant :: (p1:Vector2, p2:Vector2) -> float {
 }
 
 is_vertex_in_right_winding_order :: (a:Vector2, b:Vector2, c:Vector2) -> bool {
-  return determinant(b-a, c-b) > 0;
+  return determinant(b-a, c-b) < 0;
 }
 
 is_vertex_inside_triangle :: (a: Vector2, b: Vector2, c: Vector2, point: Vector2) -> bool {
   ab := b - a;
   bc := c - b;
   ca := a - c;
-
   return determinant(ab, point-a) < 0 && 
          determinant(bc, point-b) < 0 && 
          determinant(ca, point-c) < 0;
@@ -429,6 +428,7 @@ draw_dot_product :: (origin:Vector2, v1:Vector2, mouse:Vector2) {
   color := Vector3.{0.91,0.22,0.52};
 
 
+  print("mouse %\n", mouse);
   dot_product_1 := dot_product(rotated_point, mouse - origin);
 
   if dot_product_1 < 0 {
