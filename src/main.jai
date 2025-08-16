@@ -42,7 +42,15 @@ main :: () {
   quit := false;
 
   g := array_add(*__s.draw_options);
-  g.name = "Triangles";
+  g.name = "Outline";
+  g.value = true;
+
+  g = array_add(*__s.draw_options);
+  g.name = "Triangle Fill";
+  g.value = true;
+
+  g = array_add(*__s.draw_options);
+  g.name = "Triangle Lines";
   g.value = true;
 
   g = array_add(*__s.draw_options);
@@ -109,13 +117,31 @@ main :: () {
                 __s.draw_line_start = cast(s32) __s.vectors.count - 1;
                 }
               }
+
               if it.key_code == .MOUSE_BUTTON_LEFT || it.key_code == .SPACEBAR {
                   __s.mouse_press_pos = .{xx mouse_x, xx mouse_y};
                   if __s.draw_line_limit == __s.vectors.count  {
                     __s.draw_line_limit += 1;
                   }
                   array_add(*__s.vectors, .{xx mouse_x, xx mouse_y});
+              } else if 
+                it.key_code == .MOUSE_BUTTON_RIGHT || 
+                it.key_code == .BACKSPACE 
+              {
+                print("backspace\n");
+                distance := 20;
+                for __s.vectors {
+                  if xx it.x > mouse_x - distance && 
+                     xx it.x < mouse_x + distance &&
+                     xx it.y > mouse_y - distance && 
+                     xx it.y < mouse_y + distance 
+                  {
+                    array_ordered_remove_by_index(*__s.vectors, it_index);
+                    break;
+                  }
+                }
               }
+
             }
           }
         }
@@ -255,65 +281,45 @@ draw_one_frame :: () {
   } // end show ui
 
   // draw outlines
-  for 1..__s.vectors.count - 1 {
-    draw_line(__s.vectors[it -1], __s.vectors[it], 10.0, __s.secondary_color);
-  }
-  // draw last outline
-  if (__s.vectors.count > 2) {
-    draw_line(__s.vectors[__s.vectors.count - 1], __s.vectors[0], 10.0, __s.secondary_color);
+
+  if __s.draw_options[0].value  {
+    for 1..__s.vectors.count - 1 {
+      draw_line(__s.vectors[it -1], __s.vectors[it], 10.0, __s.secondary_color);
+    }
+
+    // draw last outline
+    if (__s.vectors.count > 2) {
+      draw_line(__s.vectors[__s.vectors.count - 1], __s.vectors[0], 10.0, __s.secondary_color);
+    }
   }
 
-  // @todo- separate out creation of triangles from the drawing of the triangles
-  // then use the determinant to detect winding order
   // https://github.com/Muzkaw/Ear-clipping-triangulation/blob/master/Ear%20clipping%20triangulation/Triangulation.cpp
 
-
-  if (__s.vectors.count > 2) {
-    //
+  triangles := triangulate(array_view(__s.vectors, __s.draw_line_start, __s.draw_line_limit));
+  
+  {
     // draw triangles
-    // 
-    final_idx := __s.vectors.count - 1;
-    if (final_idx >= __s.draw_line_start + __s.draw_line_limit) {
-      final_idx = __s.draw_line_start + __s.draw_line_limit;
-    }
-
-    v : [..] Vector2;
-    v.allocator = temp;
-    for __s.draw_line_start .. final_idx {
-      array_add(*v, __s.vectors[it]);
-    }
-
-    color : Vector4 = .{1,1,1,1};
+    idx := 0;
+    color:= Vector4.{1,1,1,1};
     color.xyz = __s.secondary_color;
-
-    mouse_x, mouse_y := WindowCreation.get_mouse_pointer_position(__s.window, false);
-
-    while v.count > 2 {
-      // check if this triangle has any values in it.
-      if __s.draw_options[0].value {
-        color:= Vector4.{1,1,1,1};
-        color.xyz = __s.secondary_color;
-        /*
-        if is_vertex_inside_triangle(v[2], v[1], v[0], .{xx mouse_x, xx mouse_y}) {
-          color.xyz = __s.primary_color;
+    while idx <= triangles.count-3 {
+      v := *triangles[idx];
+      if __s.draw_options[1].value {
+        Simp.immediate_triangle(
+          .{v[0].x, v[0].y, 1.0}, 
+          .{v[1].x, v[1].y, 0}, 
+          .{v[2].x, v[2].y, 0}, 
+          color, color, color);
         }
-        */
-        if !is_another_vertex_inside_triangle(v[2], v[1], v[0], array_view(v, 2)) &&
-            is_vertex_in_right_winding_order(v[2], v[1], v[0]) {
-          Simp.immediate_triangle(
-            .{v[0].x, v[0].y, 1.0}, 
-            .{v[1].x, v[1].y, 0}, 
-            .{v[2].x, v[2].y, 0}, 
-            color, color, color);
-          draw_line(v[0], v[1], 10, __s.primary_color);
-          draw_line(v[0], v[2], 10, __s.primary_color);
-          draw_line(v[2], v[1], 10, __s.primary_color);
-          array_ordered_remove_by_index(*v, 1);
-        } else {
-          array_ordered_remove_by_index(*v, 0);
-        }
-      } // if
-    } // while
+      if __s.draw_options[2].value {
+        draw_line(v[0], v[1], 10, __s.primary_color);
+        draw_line(v[0], v[2], 10, __s.primary_color);
+        draw_line(v[2], v[1], 10, __s.primary_color);
+      }
+      idx += 3; 
+    }
+  }
+
     
     //
     // end draw triangles
@@ -362,11 +368,10 @@ draw_one_frame :: () {
     // draw dot product
     // 
 
-    if(__s.draw_options[1].value) {
-      for __s.draw_line_start + 1..__s.vectors.count -1 {
-        if (it > __s.draw_line_start + __s.draw_line_limit) break;
-        draw_dot_product(__s.vectors[it-1], __s.vectors[it], .{xx mouse_x, xx mouse_y});
-      }
+  if(__s.draw_options[3].value) {
+    for __s.draw_line_start + 1..__s.vectors.count -1 {
+      if (it > __s.draw_line_start + __s.draw_line_limit) break;
+      draw_dot_product(__s.vectors[it-1], __s.vectors[it], .{xx mouse_x, xx mouse_y});
     }
   }
 
@@ -391,8 +396,57 @@ draw_one_frame :: () {
   reset_temporary_storage();
 
 }
-determinant :: (p1:Vector2, p2:Vector2) -> float {
-  return p1.x*p2.y - p1.y*p2.x;
+
+triangulate :: (initialPoints:[]Vector2) -> [..]Vector2 {
+  triangles: [..]Vector2;  
+  triangles.allocator = temp;
+
+  points : [..] Vector2;
+  points.allocator = temp; 
+  for initialPoints {
+    array_add(*points, it);
+  }
+
+	if(points.count >= 3) {
+    impossibleToTriangulate := false;
+    triangleFound := true ;
+
+		while(points.count >= 0 && triangleFound) {
+			triangleFound = false ; // we want to find a new ear at each loop
+
+			for i: 0 .. points.count-3 {
+        // if we didn't find an ear
+				if(!triangleFound) {
+					is_an_ear := false;
+					if determinant(points[i+1]-points[i], points[i+2]-points[i+1]) > 0 {
+            // if the triangle winds in the right direction
+						is_an_ear = true;
+						for 0 .. initialPoints.count - 1 {
+							if is_another_vertex_inside_triangle(points[i+2],points[i+1],points[i],array_view(initialPoints, it)) {
+								is_an_ear = false; 
+							}
+						}
+					}
+
+					if is_an_ear {
+						triangleFound = true ;
+						array_add(*triangles, points[i]);
+						array_add(*triangles, points[i+1]);
+						array_add(*triangles, points[i+2]);
+            array_ordered_remove_by_index(*points, i+1);
+					}
+				}
+			}
+		}
+	}			
+  return triangles;
+}
+
+
+// This ends up being the area of a paralellagram 
+
+determinant :: (a:Vector2, b:Vector2) -> float {
+  return a.x*b.y - a.y*b.x;
 }
 
 is_vertex_in_right_winding_order :: (a:Vector2, b:Vector2, c:Vector2) -> bool {
@@ -427,8 +481,6 @@ draw_dot_product :: (origin:Vector2, v1:Vector2, mouse:Vector2) {
   // outside
   color := Vector3.{0.91,0.22,0.52};
 
-
-  print("mouse %\n", mouse);
   dot_product_1 := dot_product(rotated_point, mouse - origin);
 
   if dot_product_1 < 0 {
@@ -481,8 +533,8 @@ Input :: #import "Input";
 WindowCreation :: #import "Window_Creation";
 Simp :: #import "Simp";
 
-#import "Basic";
-//#import "Basic"()(MEMORY_DEBUGGER=true);
+//#import "Basic";
+#import "Basic"()(MEMORY_DEBUGGER=true);
 
 
 /*
