@@ -417,39 +417,37 @@ triangulate :: (initialPoints:[]Vector2) -> [..]Vector2 {
 
   points : [..] Vector2;
   points.allocator = temp; 
-  for initialPoints {
-    array_add(*points, it);
-  }
+  array_copy(*points, initialPoints);
 
 	if(points.count >= 3) {
-    impossibleToTriangulate := false;
-    triangleFound := true ;
-
-		while(points.count >= 0 && triangleFound) {
-			triangleFound = false ; // we want to find a new ear at each loop
-
+    ear_found := true ;
+		while(points.count >= 0 && ear_found) {
+			ear_found = false;
 			for i: 0 .. points.count-3 {
-        // if we didn't find an ear
-				if(!triangleFound) {
-					is_an_ear := false;
-					if determinant(points[i+1]-points[i], points[i+2]-points[i+1]) > 0 {
-            // if the triangle winds in the right direction
-						is_an_ear = true;
-						for 0 .. initialPoints.count - 1 {
-							if is_another_vertex_inside_triangle(points[i+2],points[i+1],points[i],array_view(initialPoints, it)) {
-								is_an_ear = false; 
-							}
-						}
-					}
-
-					if is_an_ear {
-						triangleFound = true ;
-						array_add(*triangles, points[i]);
-						array_add(*triangles, points[i+1]);
-						array_add(*triangles, points[i+2]);
+        /*
+        p1 := points[0];
+        p2 := points[1];
+        p3 := points[2];
+        */
+        if determinant(points[i+1]-points[i], points[i+2]-points[i+1]) > 0 {
+          // if the triangle winds in the right direction
+          ear_found = true;
+          for initialPoints {
+            if is_another_vertex_inside_triangle(points[i+2],points[i+1],points[i],array_view(initialPoints, it_index)) {
+              ear_found = false; 
+              break;
+            }
+          }
+          if ear_found {
+            array_add(*triangles, points[i]);
+            array_add(*triangles, points[i+1]);
+            array_add(*triangles, points[i+2]);
+            // remove middle point, which for an ear, will always be the one not
+            // attached to anything.
             array_ordered_remove_by_index(*points, i+1);
-					}
-				}
+            break;
+          }
+        }
 			}
 		}
 	}			
