@@ -1,36 +1,30 @@
 
-Line :: struct {
-    p1: Vector2;
-    p2: Vector2;
-}
-
-Draw_Options :: struct {
-    name: string;
-    value := false;
-}
-
-
-
 State :: struct {
     window : WindowCreation.Window_Type;
     window_width : s32;
     window_height : s32;
     theme : Overall_Theme;
-    working_directory_set : bool;
     font: *Simp.Dynamic_Font;
     vectors: [..] Vector2;
-    mouse_press_pos: Vector2 = .{-1,-1}; 
-    primary_color: Vector3 = .{0.54, 0.79, 0.77};
-    secondary_color: Vector3 = .{0.15, 0.37, 0.37};
+    mouse_press_pos: Vector2  = .{-1,-1}; 
+    primary_color:   Vector3  = .{0.54, 0.79, 0.77};
+    secondary_color: Vector3  = .{0.15, 0.37, 0.37};
     scroll_value_dragdrop_region: float;
-    draw_options: [..] Draw_Options;
-    button_theme: Button_Theme;
-    draw_line_start: s32 = 0;
-    draw_line_limit: s32 = 0;
-    loop_drawing:= false;
-    loop_speed :float= 1;
-    loop_timer :float64 = 0;
-    show_ui:= false;
+    flags:Flags = .outline | .triangle_fill | .triangle_lines;
+    draw_line_start:  s32     = 0;
+    draw_line_limit:  s32     = 0;
+    loop_speed :      float   = 1;
+    loop_timer :      float64 = 0;
+    start_time : Apollo_Time;
+}
+
+Flags :: enum_flags {
+  outline;
+  triangle_fill;
+  triangle_lines;
+  dot_product;
+  loop;
+  show_ui;
 }
 
 __s : State;
@@ -40,44 +34,39 @@ main :: () {
   msaa := Simp.prepare_window(__s.window, wanted_msaa = 8);
 
   Simp.set_render_target(__s.window, .LEFT_HANDED);
+  path := String.path_strip_filename(System.get_path_of_running_executable());
+  set_working_directory(path);
   init_fonts();
   ui_init();
-  quit := false;
+  run := true;
 
-  g := array_add(*__s.draw_options);
-  g.name = "Outline";
-  g.value = true;
+  while run {
+    __s.start_time = current_time_monotonic();
+    run = handle_input();
+    draw_one_frame();
+  }
+}
 
-  g = array_add(*__s.draw_options);
-  g.name = "Triangle Fill";
-  g.value = true;
-
-  g = array_add(*__s.draw_options);
-  g.name = "Triangle Lines";
-  g.value = true;
-
-  g = array_add(*__s.draw_options);
-  g.name = "Dot Product";
-  g.value = false;
-
-  while !quit {
-    start_time = current_time_monotonic();
-    Input.update_window_events();
-    for Input.get_window_resizes() {
-      Simp.update_window(it.window);
-      if it.window == __s.window {
-        should_reinit := (it.width != __s.window_width) || (it.height != __s.window_height);
-        __s.window_width  = it.width;
-        __s.window_height = it.height;
-        if should_reinit init_fonts();  // Resize the font for the new window size.
+handle_input :: () -> bool {
+  Input.update_window_events();
+  for Input.get_window_resizes() {
+    Simp.update_window(it.window);
+    if it.window == __s.window {
+      should_reinit := (it.width != __s.window_width) || (it.height != __s.window_height);
+      __s.window_width  = it.width;
+      __s.window_height = it.height;
+      if should_reinit {
+        init_fonts();  // Resize the font for the new window size.
       }
     }
-    k := __s.window_height * .05;
-    for Input.events_this_frame {
-      mouse_x, mouse_y := WindowCreation.get_mouse_pointer_position(__s.window, false);
-      if it.type == .QUIT then quit = true;
-
-      if it.type == .MOUSE_WHEEL{
+  }
+  k := __s.window_height * .05;
+  for Input.events_this_frame {
+    mouse_x, mouse_y := WindowCreation.get_mouse_pointer_position(__s.window, false);
+    if it.type ==  {
+      case .QUIT; 
+        return false;
+      case .MOUSE_WHEEL;
         __s.draw_line_start -= xx (it.wheel_delta * 0.15);
         if (__s.draw_line_start > __s.vectors.count - 1) {
           __s.draw_line_start = 0;
@@ -85,99 +74,73 @@ main :: () {
         if (__s.draw_line_start < 0) {
           __s.draw_line_start = cast(s32) __s.vectors.count - 1;
         }
-      }
-      if it.type == .KEYBOARD {
-
-        if !it.repeat {
-          if it.key_pressed {
-            if it.key_code == {
-              case #char "R";
-              array_reset(*__s.vectors);
-              case #char "2";
-            }
+      case .KEYBOARD;
+        if it.key_pressed && !it.repeat {
+          if it.key_code == {
+            case #char "R";
+            array_reset(*__s.vectors);
+            case #char "2";
           }
-          if !__s.show_ui {
-            if it.key_pressed {
-              if it.shift_pressed && it.key_code == .ARROW_RIGHT {
-                __s.draw_line_limit += 1;
-                if (__s.draw_line_limit > __s.vectors.count) {
-                  __s.draw_line_limit = cast(s32) __s.vectors.count;
-                }
-              } else if it.key_code == .ARROW_RIGHT {
-                __s.draw_line_start += 1;
-                if (__s.draw_line_start > __s.vectors.count -1) {
-                __s.draw_line_start = 0;
-                }
-              }
-              if it.shift_pressed && it.key_code == .ARROW_LEFT {
-                __s.draw_line_limit -= 1;
-                if (__s.draw_line_limit < 1) {
-                  __s.draw_line_limit = 1;
-                }
-              } else if it.key_code == .ARROW_LEFT {
-                __s.draw_line_start -= 1;
-                if (__s.draw_line_start < 0) {
-                __s.draw_line_start = cast(s32) __s.vectors.count - 1;
-                }
-              }
-
-              if it.key_code == .MOUSE_BUTTON_LEFT || it.key_code == .SPACEBAR {
-                  __s.mouse_press_pos = .{xx mouse_x, xx mouse_y};
-                  if __s.draw_line_limit == __s.vectors.count  {
-                    __s.draw_line_limit += 1;
-                  }
-                  array_add(*__s.vectors, .{xx mouse_x, xx mouse_y});
-              } else if 
-                it.key_code == .MOUSE_BUTTON_RIGHT || 
-                it.key_code == .BACKSPACE 
-              {
-                print("backspace\n");
-                distance := 20;
-                for __s.vectors {
-                  if xx it.x > mouse_x - distance && 
-                     xx it.x < mouse_x + distance &&
-                     xx it.y > mouse_y - distance && 
-                     xx it.y < mouse_y + distance 
-                  {
-                    array_ordered_remove_by_index(*__s.vectors, it_index);
-                    break;
-                  }
-                }
-              }
-
-            }
+        if it.shift_pressed && it.key_code == .ARROW_RIGHT {
+          __s.draw_line_limit += 1;
+          if (__s.draw_line_limit > __s.vectors.count) {
+            __s.draw_line_limit = cast(s32) __s.vectors.count;
+          }
+        } else if it.key_code == .ARROW_RIGHT {
+          __s.draw_line_start += 1;
+          if (__s.draw_line_start > __s.vectors.count -1) {
+          __s.draw_line_start = 0;
           }
         }
-      }
-    }
-    draw_one_frame();
-  }
+        if it.shift_pressed && it.key_code == .ARROW_LEFT {
+          __s.draw_line_limit -= 1;
+          if (__s.draw_line_limit < 1) {
+            __s.draw_line_limit = 1;
+          }
+        } else if it.key_code == .ARROW_LEFT {
+          __s.draw_line_start -= 1;
+          if (__s.draw_line_start < 0) {
+          __s.draw_line_start = cast(s32) __s.vectors.count - 1;
+          }
+        }
+
+        // ui shouldn't be showing
+        if !(__s.flags & .show_ui) {
+          if it.key_code == .MOUSE_BUTTON_LEFT || it.key_code == .SPACEBAR {
+              __s.mouse_press_pos = .{xx mouse_x, xx mouse_y};
+              if __s.draw_line_limit == __s.vectors.count  {
+                __s.draw_line_limit += 1;
+              }
+              array_add(*__s.vectors, .{xx mouse_x, xx mouse_y});
+          } else if 
+            it.key_code == .MOUSE_BUTTON_RIGHT || 
+            it.key_code == .BACKSPACE 
+          {
+            print("backspace\n");
+            distance := 20;
+            for __s.vectors {
+              if xx it.x > mouse_x - distance && 
+                 xx it.x < mouse_x + distance &&
+                 xx it.y > mouse_y - distance && 
+                 xx it.y < mouse_y + distance 
+              {
+                array_ordered_remove_by_index(*__s.vectors, it_index);
+                break;
+              }
+            }
+          } // delete
+        } // !show_ui
+      } // key pressed
+    } // case
+  } // events per frame
+  return true;
 }
 
 init_fonts :: () {
-  if !__s.working_directory_set {
-      path := String.path_strip_filename(System.get_path_of_running_executable());
-      set_working_directory(path);
-      __s.working_directory_set = true;
-  }
   pixel_height := __s.window_height / 50;
   free(__s.font);
   __s.font = Simp.get_font_at_size("../data", "OpenSans-BoldItalic.ttf", pixel_height);
   assert(__s.font != null);
-}
-
-TestEnum :: enum {
-  Testing1;
-  Testing2;
-  Testing3;
-}
-
-start_time : Apollo_Time;
-
-Triangle :: struct {
-  p1: Vector2;
-  p2: Vector2;
-  p3: Vector2;
 }
 
 
@@ -185,9 +148,6 @@ draw_one_frame :: () {
   proc := default_theme_procs[ Default_Themes.Default ];
   __s.theme = proc();
   set_default_theme(__s.theme);
-
-  __s.button_theme = __s.theme.button_theme;
-  __s.button_theme.font = __s.font;
 
   bg_col := __s.theme.background_color;
   Simp.clear_render_target(bg_col.x, bg_col.y, bg_col.z, 1);
@@ -210,7 +170,7 @@ draw_one_frame :: () {
   mouse_x, mouse_y := WindowCreation.get_mouse_pointer_position(__s.window, false);
   // draw outlines
 
-  if __s.draw_options[0].value  {
+  if __s.flags & .outline {
     for 1..__s.vectors.count - 1 {
       draw_line(__s.vectors[it -1], __s.vectors[it], 10.0, __s.secondary_color);
     }
@@ -227,94 +187,47 @@ draw_one_frame :: () {
   
   {
     // draw triangles
-    idx := 0;
     color:= Vector4.{1,1,1,1};
     color.xyz = __s.secondary_color;
-    while idx <= triangles.count-3 {
-      v := *triangles[idx];
-      if __s.draw_options[1].value {
+    for triangles {
+      v := it;
+      if __s.flags & .triangle_fill {
         Simp.immediate_triangle(
-          .{v[0].x, v[0].y, 1.0}, 
-          .{v[1].x, v[1].y, 0}, 
-          .{v[2].x, v[2].y, 0}, 
+          .{v.a.x, v.a.y, 1.0}, 
+          .{v.b.x, v.b.y, 0}, 
+          .{v.c.x, v.c.y, 0}, 
           color, color, color);
-        }
-      if __s.draw_options[2].value {
-        draw_line(v[0], v[1], 10, __s.primary_color);
-        draw_line(v[0], v[2], 10, __s.primary_color);
-        draw_line(v[2], v[1], 10, __s.primary_color);
       }
-      idx += 3; 
+      if __s.flags & .triangle_lines {
+        draw_line(v.a, v.b, 10, __s.primary_color);
+        draw_line(v.a, v.c, 10, __s.primary_color);
+        draw_line(v.c, v.b, 10, __s.primary_color);
+      }
     }
   }
 
-    
-    //
-    // end draw triangles
-    // 
+  //
+  // draw dot product
+  // 
 
-
-    // draw angles
-    /*
-    {
-      k := __s.window_height * .05;
-      label_theme := __s.theme.label_theme;
-      label_theme.font = __s.font;
-      label_theme.alignment = .Left;
-      //label_theme.text_color.xyz = color;
-      // draw angles
-      for idx: 0 .. __s.vectors.count - 2 {
-        p1 := __s.vectors[idx];
-        p2 := __s.vectors[idx+1];
-        r := get_rect(p1.x - 1 * k, p1.y, 4 * k, 1 * k);
-        delta := p1 - p2;
-        angle := atan(delta.y / delta.x) / PI * 180;
-        label(r, tprint("angle: %", angle), *label_theme);
-      }
-    }
-    */
-
-    // draw winding order
-    /*
-    {
-      k := __s.window_height * .05;
-      label_theme := __s.theme.label_theme;
-      label_theme.font = __s.font;
-      label_theme.alignment = .Left;
-      //label_theme.text_color.xyz = color;
-      for idx: 0 .. __s.vectors.count - 2 {
-        p1 := __s.vectors[idx];
-        p2 := __s.vectors[idx+1];
-        r := get_rect(p1.x - 1 * k, p1.y, 4 * k, 1 * k);
-        delta := p2 - p1;
-        label(r, tprint("product: %", delta.x * delta.y), *label_theme);
-      }
-    }
-    */
-
-    //
-    // draw dot product
-    // 
-
-  if(__s.draw_options[3].value) {
+  if __s.flags &.dot_product {
     for __s.draw_line_start + 1..__s.vectors.count -1 {
       if (it > __s.draw_line_start + __s.draw_line_limit) break;
       draw_dot_product(__s.vectors[it-1], __s.vectors[it], .{xx mouse_x, xx mouse_y});
     }
   }
 
-
-
+  //
   // UI
+  //
 
-
-  if mouse_x < 50{
-    __s.show_ui = true;
+  if mouse_x < 50 {
+    __s.flags |= .show_ui;
   } else if mouse_x > 500 {
-    __s.show_ui = false;
+    __s.flags &= ~.show_ui;
   }
 
-  if __s.show_ui {
+  if __s.flags & .show_ui {
     r := get_rect(0*k, 0*k, 5*k, 20*k);
 
     theme := __s.theme.scrollable_region_theme;
@@ -324,10 +237,8 @@ draw_one_frame :: () {
     s.h = xx __s.font.character_height;
     s.y -= __s.scroll_value_dragdrop_region;
 
-    checkbox_theme := __s.theme.checkbox_theme;
-    for * __s.draw_options {
-      pressed := base_checkbox(s, it.name, it.value, *checkbox_theme, it_index);
-      it.value ^= pressed;
+    for Flags.[ .outline, .triangle_fill, .triangle_lines, .dot_product,] {
+      checkbox_flags(s, *__s.flags, it, identifier = it_index);
       s.y += floor(__s.font.character_height * 1.1 + 0.5);
     }
 
@@ -350,13 +261,11 @@ draw_one_frame :: () {
     slider(s, *__s.loop_speed, 0, 10, 1, *slider_theme, "speed ");
     s.y += s.h * 1.2;
 
+    checkbox_flags(s, *__s.flags, .loop);
+    s.y += floor(__s.font.character_height * 1.1 + 0.5);
+
     {
-      pressed := base_checkbox(s, "Loop", __s.loop_drawing, *checkbox_theme, 0);
-      __s.loop_drawing ^= pressed;
-      s.y += floor(__s.font.character_height * 1.1 + 0.5);
-    }
-    {
-      pressed := button(s, "Reset", *__s.button_theme);
+      pressed := button(s, "Reset", *__s.theme.button_theme);
       s.y += floor(__s.font.character_height * 1.1 + 0.5);
       if pressed  {
         array_reset(*__s.vectors);
@@ -365,10 +274,26 @@ draw_one_frame :: () {
       }
     }
 
+    {
+      pressed := button(s, "Random", *__s.theme.button_theme);
+      s.y += floor(__s.font.character_height * 1.1 + 0.5);
+      if pressed  {
+        for 0 .. 100 {
+          array_add(*__s.vectors, 
+            Vector2.{
+              xx (random_get() % xx __s.window_width), 
+              xx (random_get() % xx __s.window_height), 
+            });
+        }
+      }
+    }
+
     aspect := get_desired_aspect_ratio(*__s.theme.color_picker_theme);
 
     {
-      s.y += 1 * k;
+      s.y += 0.5 * k;
+      label(s, "Fill", *__s.theme.label_theme);
+      s.y += floor(__s.font.character_height * 1.1 + 0.5);
       picker := get_rect(s.x, s.y, s.w, 5*k/aspect);
       color_picker_theme := *__s.theme.color_picker_theme;
       applied := color_picker(picker, *__s.secondary_color, color_picker_theme);
@@ -376,7 +301,9 @@ draw_one_frame :: () {
     }
 
     {
-      s.y += 1 * k;
+      s.y += 0.5 * k;
+      label(s, "Line", *__s.theme.label_theme);
+      s.y += floor(__s.font.character_height * 1.1 + 0.5);
       picker := get_rect(s.x, s.y, s.w, 5*k/aspect);
       color_picker_theme := *__s.theme.color_picker_theme;
       applied := color_picker(picker, *__s.primary_color, color_picker_theme);
@@ -387,17 +314,14 @@ draw_one_frame :: () {
 
   } // end show ui
 
-
-
-
   Simp.immediate_flush();
   Simp.swap_buffers(__s.window);
   memory_visualizer_per_frame_update();
 
   sleep_milliseconds(1); 
-  if __s.loop_drawing {
+  if __s.flags & .loop {
     now := current_time_monotonic();
-    ms_passed:= to_milliseconds(now - start_time);
+    ms_passed:= to_milliseconds(now - __s.start_time);
     __s.loop_timer += ms_passed * __s.loop_speed; 
     if __s.loop_timer > 100 {
       __s.loop_timer = 0;
@@ -408,49 +332,50 @@ draw_one_frame :: () {
     }
   }
   reset_temporary_storage();
-
 }
 
-triangulate :: (initialPoints:[]Vector2) -> [..]Vector2 {
-  triangles: [..]Vector2;  
+Triangle :: struct {
+  a: Vector2;
+  b: Vector2;
+  c: Vector2;
+};
+
+triangulate :: (original_points:[]Vector2) -> [..]Triangle {
+  triangles: [..]Triangle;
   triangles.allocator = temp;
 
   points : [..] Vector2;
   points.allocator = temp; 
-  array_copy(*points, initialPoints);
+  array_copy(*points, original_points);
 
 	if(points.count >= 3) {
     ear_found := true ;
 		while(points.count >= 0 && ear_found) {
 			ear_found = false;
-			for i: 0 .. points.count-3 {
-        /*
-        p1 := points[0];
-        p2 := points[1];
-        p3 := points[2];
-        */
-        if determinant(points[i+1]-points[i], points[i+2]-points[i+1]) > 0 {
+			for idx: 0 .. points.count-3 {
+        a := points[idx];
+        b := points[idx + 1];
+        c := points[idx + 2];
+        if determinant(b-a, c-b) > 0 {
           // if the triangle winds in the right direction
           ear_found = true;
-          for initialPoints {
-            if is_another_vertex_inside_triangle(points[i+2],points[i+1],points[i],array_view(initialPoints, it_index)) {
+          for original_points {
+            point_view := array_view(original_points, it_index);
+            if is_another_vertex_inside_triangle(c,b,a,point_view) {
               ear_found = false; 
               break;
             }
           }
           if ear_found {
-            array_add(*triangles, points[i]);
-            array_add(*triangles, points[i+1]);
-            array_add(*triangles, points[i+2]);
-            // remove middle point, which for an ear, will always be the one not
-            // attached to anything.
-            array_ordered_remove_by_index(*points, i+1);
+            array_add(*triangles, .{ a, b, c});
+            // remove middle point, which is always not connected to anything else
+            array_ordered_remove_by_index(*points, idx+1);
             break;
           }
-        }
-			}
-		}
-	}			
+        } // winding
+			} // for
+		} // while
+	} // point count			
   return triangles;
 }
 
@@ -474,9 +399,9 @@ is_vertex_inside_triangle :: (a: Vector2, b: Vector2, c: Vector2, point: Vector2
          determinant(ca, point-c) < 0;
 }
 
-is_another_vertex_inside_triangle :: (p1:Vector2, p2:Vector2, p3:Vector2, arr: [] Vector2) -> bool {
+is_another_vertex_inside_triangle :: (a:Vector2, b:Vector2, c:Vector2, arr: [] Vector2) -> bool {
   for point: arr {
-    if is_vertex_inside_triangle(p1, p2, p3, point)
+    if is_vertex_inside_triangle(a, b, c, point)
     {
       return true;
     }
@@ -545,18 +470,12 @@ Input :: #import "Input";
 WindowCreation :: #import "Window_Creation";
 Simp :: #import "Simp";
 
-//#import "Basic";
-#import "Basic"()(MEMORY_DEBUGGER=true);
+#import "Basic";
+//#import "Basic"()(MEMORY_DEBUGGER=true);
 
-
-/*
-using,only(
-    Vector2,
-    Vector4
-) Math :: #import "Math";
-*/
 #import "Math";
 
 String :: #import "String";
 System :: #import "System";
+#import "Random";
 
