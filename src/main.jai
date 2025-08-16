@@ -9,6 +9,8 @@ Draw_Options :: struct {
     value := false;
 }
 
+
+
 State :: struct {
     window : WindowCreation.Window_Type;
     window_width : s32;
@@ -28,6 +30,7 @@ State :: struct {
     loop_drawing:= false;
     loop_speed :float= 1;
     loop_timer :float64 = 0;
+    show_ui:= false;
 }
 
 __s : State;
@@ -93,7 +96,7 @@ main :: () {
               case #char "2";
             }
           }
-          if xx mouse_x > 5 * k {
+          if !__s.show_ui {
             if it.key_pressed {
               if it.shift_pressed && it.key_code == .ARROW_RIGHT {
                 __s.draw_line_limit += 1;
@@ -204,82 +207,7 @@ draw_one_frame :: () {
   Simp.immediate_begin();
 
 
-  // UI
-
   mouse_x, mouse_y := WindowCreation.get_mouse_pointer_position(__s.window, false);
-  if mouse_x < 500 {
-    r := get_rect(0*k, 0*k, 5*k, 20*k);
-
-    theme := __s.theme.scrollable_region_theme;
-    region, inside := begin_scrollable_region(r, *theme);
-    s := inside;
-    s.y = s.y;
-    s.h = xx __s.font.character_height;
-    s.y -= __s.scroll_value_dragdrop_region;
-
-    checkbox_theme := __s.theme.checkbox_theme;
-    for * __s.draw_options {
-      pressed := base_checkbox(s, it.name, it.value, *checkbox_theme, it_index);
-      it.value ^= pressed;
-      s.y += floor(__s.font.character_height * 1.1 + 0.5);
-    }
-
-    slider_theme := __s.theme.slider_theme;
-    slider_theme.foreground.font = __s.font;
-    slider_theme.surface_style = .NUB;
-    slider(s, *__s.draw_line_start, 0, xx __s.vectors.count, 1, *slider_theme, "start ");
-    if __s.draw_line_start > __s.vectors.count - 1 {
-      if (__s.vectors.count > 0) {
-        __s.draw_line_start = cast(s32) __s.vectors.count - 1;
-      } else {
-        __s.draw_line_start = 0;
-      }
-    }
-    s.y += s.h * 1.2;
-
-    slider(s, *__s.draw_line_limit, 0, xx __s.vectors.count, 1, *slider_theme, "limit ");
-    s.y += s.h * 1.2;
-
-    slider(s, *__s.loop_speed, 0, 10, 1, *slider_theme, "speed ");
-    s.y += s.h * 1.2;
-
-    {
-      pressed := base_checkbox(s, "Loop", __s.loop_drawing, *checkbox_theme, 0);
-      __s.loop_drawing ^= pressed;
-      s.y += floor(__s.font.character_height * 1.1 + 0.5);
-    }
-    {
-      pressed := button(s, "Reset", *__s.button_theme);
-      s.y += floor(__s.font.character_height * 1.1 + 0.5);
-      if pressed  {
-        array_reset(*__s.vectors);
-        __s.draw_line_start = 0;
-        __s.draw_line_limit = 0;
-      }
-    }
-
-    aspect := get_desired_aspect_ratio(*__s.theme.color_picker_theme);
-
-    {
-      s.y += 1 * k;
-      picker := get_rect(s.x, s.y, s.w, 5*k/aspect);
-      color_picker_theme := *__s.theme.color_picker_theme;
-      applied := color_picker(picker, *__s.secondary_color, color_picker_theme);
-      s.y += picker.h;
-    }
-
-    {
-      s.y += 1 * k;
-      picker := get_rect(s.x, s.y, s.w, 5*k/aspect);
-      color_picker_theme := *__s.theme.color_picker_theme;
-      applied := color_picker(picker, *__s.primary_color, color_picker_theme);
-      s.y += picker.h;
-    }
-
-    end_scrollable_region(region, s.x + s.w, s.y, *__s.scroll_value_dragdrop_region);
-
-  } // end show ui
-
   // draw outlines
 
   if __s.draw_options[0].value  {
@@ -374,6 +302,92 @@ draw_one_frame :: () {
       draw_dot_product(__s.vectors[it-1], __s.vectors[it], .{xx mouse_x, xx mouse_y});
     }
   }
+
+
+
+  // UI
+
+
+  if mouse_x < 50{
+    __s.show_ui = true;
+  } else if mouse_x > 500 {
+    __s.show_ui = false;
+  }
+
+  if __s.show_ui {
+    r := get_rect(0*k, 0*k, 5*k, 20*k);
+
+    theme := __s.theme.scrollable_region_theme;
+    region, inside := begin_scrollable_region(r, *theme);
+    s := inside;
+    s.y = s.y;
+    s.h = xx __s.font.character_height;
+    s.y -= __s.scroll_value_dragdrop_region;
+
+    checkbox_theme := __s.theme.checkbox_theme;
+    for * __s.draw_options {
+      pressed := base_checkbox(s, it.name, it.value, *checkbox_theme, it_index);
+      it.value ^= pressed;
+      s.y += floor(__s.font.character_height * 1.1 + 0.5);
+    }
+
+    slider_theme := __s.theme.slider_theme;
+    slider_theme.foreground.font = __s.font;
+    slider_theme.surface_style = .NUB;
+    slider(s, *__s.draw_line_start, 0, xx __s.vectors.count, 1, *slider_theme, "start ");
+    if __s.draw_line_start > __s.vectors.count - 1 {
+      if (__s.vectors.count > 0) {
+        __s.draw_line_start = cast(s32) __s.vectors.count - 1;
+      } else {
+        __s.draw_line_start = 0;
+      }
+    }
+    s.y += s.h * 1.2;
+
+    slider(s, *__s.draw_line_limit, 0, xx __s.vectors.count, 1, *slider_theme, "limit ");
+    s.y += s.h * 1.2;
+
+    slider(s, *__s.loop_speed, 0, 10, 1, *slider_theme, "speed ");
+    s.y += s.h * 1.2;
+
+    {
+      pressed := base_checkbox(s, "Loop", __s.loop_drawing, *checkbox_theme, 0);
+      __s.loop_drawing ^= pressed;
+      s.y += floor(__s.font.character_height * 1.1 + 0.5);
+    }
+    {
+      pressed := button(s, "Reset", *__s.button_theme);
+      s.y += floor(__s.font.character_height * 1.1 + 0.5);
+      if pressed  {
+        array_reset(*__s.vectors);
+        __s.draw_line_start = 0;
+        __s.draw_line_limit = 0;
+      }
+    }
+
+    aspect := get_desired_aspect_ratio(*__s.theme.color_picker_theme);
+
+    {
+      s.y += 1 * k;
+      picker := get_rect(s.x, s.y, s.w, 5*k/aspect);
+      color_picker_theme := *__s.theme.color_picker_theme;
+      applied := color_picker(picker, *__s.secondary_color, color_picker_theme);
+      s.y += picker.h;
+    }
+
+    {
+      s.y += 1 * k;
+      picker := get_rect(s.x, s.y, s.w, 5*k/aspect);
+      color_picker_theme := *__s.theme.color_picker_theme;
+      applied := color_picker(picker, *__s.primary_color, color_picker_theme);
+      s.y += picker.h;
+    }
+
+    end_scrollable_region(region, s.x + s.w, s.y, *__s.scroll_value_dragdrop_region);
+
+  } // end show ui
+
+
 
 
   Simp.immediate_flush();
