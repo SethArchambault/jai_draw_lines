@@ -79,58 +79,58 @@ handle_input :: () -> bool {
           if it.key_code == {
             case #char "R";
             array_reset(*__s.vectors);
-            case #char "2";
           }
-        if it.shift_pressed && it.key_code == .ARROW_RIGHT {
-          __s.draw_line_limit += 1;
-          if (__s.draw_line_limit > __s.vectors.count) {
-            __s.draw_line_limit = cast(s32) __s.vectors.count;
-          }
-        } else if it.key_code == .ARROW_RIGHT {
-          __s.draw_line_start += 1;
-          if (__s.draw_line_start > __s.vectors.count -1) {
-          __s.draw_line_start = 0;
-          }
-        }
-        if it.shift_pressed && it.key_code == .ARROW_LEFT {
-          __s.draw_line_limit -= 1;
-          if (__s.draw_line_limit < 1) {
-            __s.draw_line_limit = 1;
-          }
-        } else if it.key_code == .ARROW_LEFT {
-          __s.draw_line_start -= 1;
-          if (__s.draw_line_start < 0) {
-          __s.draw_line_start = cast(s32) __s.vectors.count - 1;
-          }
-        }
-
-        // ui shouldn't be showing
-        if !(__s.flags & .show_ui) {
-          if it.key_code == .MOUSE_BUTTON_LEFT || it.key_code == .SPACEBAR {
-              __s.mouse_press_pos = .{xx mouse_x, xx mouse_y};
-              if __s.draw_line_limit == __s.vectors.count  {
-                __s.draw_line_limit += 1;
-              }
-              array_add(*__s.vectors, .{xx mouse_x, xx mouse_y});
-          } else if 
-            it.key_code == .MOUSE_BUTTON_RIGHT || 
-            it.key_code == .BACKSPACE 
-          {
-            print("backspace\n");
-            distance := 20;
-            for __s.vectors {
-              if xx it.x > mouse_x - distance && 
-                 xx it.x < mouse_x + distance &&
-                 xx it.y > mouse_y - distance && 
-                 xx it.y < mouse_y + distance 
-              {
-                array_ordered_remove_by_index(*__s.vectors, it_index);
-                break;
-              }
+          if it.shift_pressed && it.key_code == .ARROW_RIGHT {
+            __s.draw_line_limit += 1;
+            if (__s.draw_line_limit > __s.vectors.count) {
+              __s.draw_line_limit = cast(s32) __s.vectors.count;
             }
-          } // delete
-        } // !show_ui
-      } // key pressed
+          } else if it.key_code == .ARROW_RIGHT {
+            __s.draw_line_start += 1;
+            if (__s.draw_line_start > __s.vectors.count -1) {
+            __s.draw_line_start = 0;
+            }
+          }
+          if it.shift_pressed && it.key_code == .ARROW_LEFT {
+            __s.draw_line_limit -= 1;
+            if (__s.draw_line_limit < 1) {
+              __s.draw_line_limit = 1;
+            }
+          } else if it.key_code == .ARROW_LEFT {
+            __s.draw_line_start -= 1;
+            if (__s.draw_line_start < 0) {
+            __s.draw_line_start = cast(s32) __s.vectors.count - 1;
+            }
+          }
+
+          // ui shouldn't be showing
+          if !(__s.flags & .show_ui) {
+            if it.key_code == .MOUSE_BUTTON_LEFT || it.key_code == .SPACEBAR {
+                __s.mouse_press_pos = .{xx mouse_x, xx mouse_y};
+                if __s.draw_line_limit == __s.vectors.count  {
+                  __s.draw_line_limit += 1;
+                }
+                array_add(*__s.vectors, .{xx mouse_x, xx mouse_y});
+            } else if 
+              it.key_code == .MOUSE_BUTTON_RIGHT || 
+              it.key_code == .BACKSPACE 
+            {
+              distance := 20;
+              for __s.vectors {
+                if xx it.x > mouse_x - distance && 
+                   xx it.x < mouse_x + distance &&
+                   xx it.y > mouse_y - distance && 
+                   xx it.y < mouse_y + distance 
+                {
+                  array_ordered_remove_by_index(*__s.vectors, it_index);
+                  break;
+                }
+              }
+            } // delete
+          } // !show_ui
+        } // key pressed
+      // case keyboard
+      case;
     } // case
   } // events per frame
   return true;
@@ -162,10 +162,8 @@ draw_one_frame :: () {
   // 1/10 of the screen height, so, 100 pixels at 1920x2000.
   k := __s.window_height * .05;
 
-
   Simp.set_shader_for_color();
   Simp.immediate_begin();
-
 
   mouse_x, mouse_y := WindowCreation.get_mouse_pointer_position(__s.window, false);
   // draw outlines
@@ -340,6 +338,8 @@ Triangle :: struct {
   c: Vector2;
 };
 
+
+// adapted from https://github.com/Muzkaw/Ear-clipping-triangulation/blob/master/Ear%20clipping%20triangulation/Triangulation.cpp
 triangulate :: (original_points:[]Vector2) -> [..]Triangle {
   triangles: [..]Triangle;
   triangles.allocator = temp;
@@ -386,10 +386,6 @@ determinant :: (a:Vector2, b:Vector2) -> float {
   return a.x*b.y - a.y*b.x;
 }
 
-is_vertex_in_right_winding_order :: (a:Vector2, b:Vector2, c:Vector2) -> bool {
-  return determinant(b-a, c-b) < 0;
-}
-
 is_vertex_inside_triangle :: (a: Vector2, b: Vector2, c: Vector2, point: Vector2) -> bool {
   ab := b - a;
   bc := c - b;
@@ -401,8 +397,7 @@ is_vertex_inside_triangle :: (a: Vector2, b: Vector2, c: Vector2, point: Vector2
 
 is_another_vertex_inside_triangle :: (a:Vector2, b:Vector2, c:Vector2, arr: [] Vector2) -> bool {
   for point: arr {
-    if is_vertex_inside_triangle(a, b, c, point)
-    {
+    if is_vertex_inside_triangle(a, b, c, point) {
       return true;
     }
   }
