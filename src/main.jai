@@ -356,13 +356,14 @@ draw_one_frame :: () {
   reset_temporary_storage();
 }
 
+
+#if 0 {
+
 Triangle :: struct {
   a: Vector2;
   b: Vector2;
   c: Vector2;
 };
-
-#if 0 {
   // adapted from https://github.com/Muzkaw/Ear-clipping-triangulation/blob/master/Ear%20clipping%20triangulation/Triangulation.cpp
   triangulate :: (original_points:[]Vector2) -> [..]Triangle {
     triangles: [..]Triangle;

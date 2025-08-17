@@ -1,26 +1,5 @@
 // Port of https://github.com/mapbox/earcut
 
-
-// Example use:
-#if 0 {
-    main :: () {
-        triangles, result := triangulate(
-            // Contour of the polygon
-            Vector2.[ .{0,0}, .{100,0}, .{100,100}, .{0,100} ],
-            .[
-                // Contour of the hole
-                .[ .{20,20}, .{80,20}, .{80,80}, .{20,80} ]
-            ]
-        ,, temp);
-        assert(result == .SUCCESS);
-        for triangles log("%", it);
-    }
-    #import "Basic";
-    #import "Math";
-    #import "Earcut";
-}
-
-
 // This module could use a big rewrite -- it currently mostly matches the original API, except for
 // the following triangulate() procedure, which seems like a better API.
 
@@ -36,11 +15,22 @@ triangulate :: (contour: [] Vector2, hole_indices:[]int) -> triangles: [][3] Vec
 } {
     if contour.count < 3 then return .[], .FAILURE_BAD_POLYGON;
 
-    for hole_indices {
-      if it >= contour.count {
-        array_ordered_remove_by_index(*hole_indices, it_index);
+    if hole_indices.count > 0 {
+      idx := hole_indices.count - 1;
+      while idx >= 0 {
+        hole_index := hole_indices[idx];
+        if hole_index >= contour.count {
+          array_ordered_remove_by_index(*hole_indices, idx);
+        }
+        idx -= 1;
       }
     }
+    /*
+    contour.count 33
+      hole_indices it_index 0 23
+      hole_indices it_index 1 40
+    */
+    for hole_indices print("hole_indices index:% value: %\n", it_index, it);
 
     triangles:    [..] [3] Vector2; // Allocator intentionally omitted
     data:         [..] float;         data.allocator = temp;
