@@ -6,6 +6,7 @@ State :: struct {
     theme : Overall_Theme;
     font: *Simp.Dynamic_Font;
     vectors: [..] Vector2;
+    hole_indices: [..] int;
     mouse_press_pos: Vector2  = .{-1,-1}; 
     primary_color:   Vector3  = .{0.54, 0.79, 0.77};
     secondary_color: Vector3  = .{0.15, 0.37, 0.37};
@@ -25,6 +26,7 @@ Flags :: enum_flags {
   dot_product;
   loop;
   show_ui;
+  create_hole;
 }
 
 __s : State;
@@ -106,11 +108,12 @@ handle_input :: () -> bool {
           // ui shouldn't be showing
           if !(__s.flags & .show_ui) {
             if it.key_code == .MOUSE_BUTTON_LEFT || it.key_code == .SPACEBAR {
-                __s.mouse_press_pos = .{xx mouse_x, xx mouse_y};
-                if __s.draw_line_limit == __s.vectors.count  {
-                  __s.draw_line_limit += 1;
-                }
-                array_add(*__s.vectors, .{xx mouse_x, xx mouse_y});
+
+              __s.mouse_press_pos = .{xx mouse_x, xx mouse_y};
+              if __s.draw_line_limit == __s.vectors.count  {
+                __s.draw_line_limit += 1;
+              }
+              array_add(*__s.vectors, .{xx mouse_x, xx mouse_y});
             } else if 
               it.key_code == .MOUSE_BUTTON_RIGHT || 
               it.key_code == .BACKSPACE 
@@ -168,20 +171,29 @@ draw_one_frame :: () {
   mouse_x, mouse_y := WindowCreation.get_mouse_pointer_position(__s.window, false);
   // draw outlines
 
+  final_vector_index := __s.vectors.count - 1;
+  if __s.hole_indices.count > 0 { 
+    final_vector_index = __s.hole_indices[0] - 1;
+  }
   if __s.flags & .outline {
-    for 1..__s.vectors.count - 1 {
+    for 1..final_vector_index {
       draw_line(__s.vectors[it -1], __s.vectors[it], 10.0, __s.secondary_color);
     }
 
     // draw last outline
-    if (__s.vectors.count > 2) {
-      draw_line(__s.vectors[__s.vectors.count - 1], __s.vectors[0], 10.0, __s.secondary_color);
+    if final_vector_index > 2 {
+      draw_line(__s.vectors[final_vector_index], __s.vectors[0], 10.0, __s.secondary_color);
     }
   }
 
   // https://github.com/Muzkaw/Ear-clipping-triangulation/blob/master/Ear%20clipping%20triangulation/Triangulation.cpp
 
-  triangles := triangulate(array_view(__s.vectors, __s.draw_line_start, __s.draw_line_limit));
+  triangles, result := triangulate(
+    array_view(__s.vectors, __s.draw_line_start, __s.draw_line_limit),
+    __s.hole_indices,
+  );
+
+  //assert(result == .SUCCESS);
   
   {
     // draw triangles
@@ -191,15 +203,15 @@ draw_one_frame :: () {
       v := it;
       if __s.flags & .triangle_fill {
         Simp.immediate_triangle(
-          .{v.a.x, v.a.y, 1.0}, 
-          .{v.b.x, v.b.y, 0}, 
-          .{v.c.x, v.c.y, 0}, 
+          .{v[0].x, v[0].y, 1.0}, 
+          .{v[1].x, v[1].y, 0}, 
+          .{v[2].x, v[2].y, 0}, 
           color, color, color);
       }
       if __s.flags & .triangle_lines {
-        draw_line(v.a, v.b, 10, __s.primary_color);
-        draw_line(v.a, v.c, 10, __s.primary_color);
-        draw_line(v.c, v.b, 10, __s.primary_color);
+        draw_line(v[0], v[1], 10, __s.primary_color);
+        draw_line(v[0], v[2], 10, __s.primary_color);
+        draw_line(v[2], v[1], 10, __s.primary_color);
       }
     }
   }
@@ -286,6 +298,18 @@ draw_one_frame :: () {
       }
     }
 
+    {
+      pressed := button(s, "Create Hole", *__s.theme.button_theme);
+      s.y += floor(__s.font.character_height * 1.1 + 0.5);
+      if pressed  {
+        array_add(*__s.hole_indices, __s.vectors.count);
+
+        // seth - we may not need this
+        __s.flags |= .create_hole;
+        print("create hole\n");
+      }
+    }
+
     aspect := get_desired_aspect_ratio(*__s.theme.color_picker_theme);
 
     {
@@ -338,45 +362,46 @@ Triangle :: struct {
   c: Vector2;
 };
 
+#if 0 {
+  // adapted from https://github.com/Muzkaw/Ear-clipping-triangulation/blob/master/Ear%20clipping%20triangulation/Triangulation.cpp
+  triangulate :: (original_points:[]Vector2) -> [..]Triangle {
+    triangles: [..]Triangle;
+    triangles.allocator = temp;
 
-// adapted from https://github.com/Muzkaw/Ear-clipping-triangulation/blob/master/Ear%20clipping%20triangulation/Triangulation.cpp
-triangulate :: (original_points:[]Vector2) -> [..]Triangle {
-  triangles: [..]Triangle;
-  triangles.allocator = temp;
+    points : [..] Vector2;
+    points.allocator = temp; 
+    array_copy(*points, original_points);
 
-  points : [..] Vector2;
-  points.allocator = temp; 
-  array_copy(*points, original_points);
-
-	if(points.count >= 3) {
-    ear_found := true ;
-		while(points.count >= 0 && ear_found) {
-			ear_found = false;
-			for idx: 0 .. points.count-3 {
-        a := points[idx];
-        b := points[idx + 1];
-        c := points[idx + 2];
-        if determinant(b-a, c-b) > 0 {
-          // if the triangle winds in the right direction
-          ear_found = true;
-          for original_points {
-            point_view := array_view(original_points, it_index);
-            if is_another_vertex_inside_triangle(c,b,a,point_view) {
-              ear_found = false; 
+    if(points.count >= 3) {
+      ear_found := true ;
+      while(points.count >= 0 && ear_found) {
+        ear_found = false;
+        for idx: 0 .. points.count-3 {
+          a := points[idx];
+          b := points[idx + 1];
+          c := points[idx + 2];
+          if determinant(b-a, c-b) > 0 {
+            // if the triangle winds in the right direction
+            ear_found = true;
+            for original_points {
+              point_view := array_view(original_points, it_index);
+              if is_another_vertex_inside_triangle(c,b,a,point_view) {
+                ear_found = false; 
+                break;
+              }
+            }
+            if ear_found {
+              array_add(*triangles, .{ a, b, c});
+              // remove middle point, which is always not connected to anything else
+              array_ordered_remove_by_index(*points, idx+1);
               break;
             }
-          }
-          if ear_found {
-            array_add(*triangles, .{ a, b, c});
-            // remove middle point, which is always not connected to anything else
-            array_ordered_remove_by_index(*points, idx+1);
-            break;
-          }
-        } // winding
-			} // for
-		} // while
-	} // point count			
-  return triangles;
+          } // winding
+        } // for
+      } // while
+    } // point count			
+    return triangles;
+  }
 }
 
 
@@ -473,4 +498,5 @@ Simp :: #import "Simp";
 String :: #import "String";
 System :: #import "System";
 #import "Random";
+#import "Earcut";
 
